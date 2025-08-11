@@ -14,6 +14,7 @@ import Budget from './pages/budget'
 import Receipts from './pages/receipts'
 import Emails from './pages/emails'
 import { AppLayout } from './components/AppLayout';
+import { ThemeProvider } from './components/ThemeProvider';
 
 
 const AppRoutes = () => {
@@ -55,23 +56,11 @@ const AppRoutes = () => {
 function App() {
 
   return (
-    <>
-      {/* <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem' }}>
-        <h1>Vite + React + Clerk</h1>
-        <div>
-          <SignedOut>
-            <SignInButton mode="modal" />
-            <SignUpButton mode="modal" />
-          </SignedOut>
-          <SignedIn>
-            <UserButton />
-          </SignedIn>
-        </div>
-      </header> */}
+    <ThemeProvider>
       <Router>
         <AppRoutes />
       </Router>
-    </>
+    </ThemeProvider>
   )
 }
 

@@ -8,6 +8,7 @@ export default {
     "./node_modules/flowbite/**/*.js",
     ".flowbite-react/class-list.json"
   ],
+  darkMode: 'class',
   theme: {
     extend: {},
   },
