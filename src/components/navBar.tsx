@@ -1,15 +1,28 @@
 import { Link, useLocation } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
-import { Button, Navbar, NavbarBrand, NavbarCollapse, NavbarLink, NavbarToggle } from "flowbite-react";
+import { Button, Dropdown, DropdownItem } from "flowbite-react";
 import IconPng from '../assets/Icon.png';
+
+interface NavItem {
+    name: string;
+    path: string;
+    children?: NavItem[];
+}
 
 export function NavBar() {
     const location = useLocation();
 
-    const navItems = [
+    const navItems: NavItem[] = [
         { name: 'Overview', path: '/' },
         { name: 'Transactions', path: '/transactions' },
-        { name: 'Budget', path: '/budget' },
+        { 
+            name: 'Budget', 
+            path: '/budget',
+            children: [
+                { name: 'Effective Year', path: '/budget/year' },
+                { name: 'Budget Heads', path: '/budget/heads' }
+            ]
+        },
         { name: 'Receipts', path: '/receipts' },
         { name: 'Emails', path: '/emails' }
     ];
@@ -31,19 +44,50 @@ export function NavBar() {
 
                 {/* Navigation Items - Desktop */}
                 <div className="hidden md:flex md:space-x-8">
-                    {navItems.map((item) => (
-                        <Link
-                            key={item.name}
-                            to={item.path}
-                            className={`py-2 px-3 text-sm font-medium rounded-lg transition-colors ${
-                                isActive(item.path)
-                                    ? 'bg-red-500 text-white'
-                                    : 'text-black-700 hover:text-gray-900 hover:bg-gray-100'
-                            }`}
-                        >
-                            {item.name}
-                        </Link>
-                    ))}
+                    {navItems.map((item) => {
+                        if (item.children) {
+                            // Render dropdown for items with children
+                            return (
+                                <Dropdown
+                                inline
+                                arrowIcon={false}
+                                    key={item.name}
+                                    label={
+                                        <span className={`py-2 px-3 text-sm font-medium rounded-lg transition-colors ${
+                                            isActive(item.path)
+                                                ? 'bg-red-500 text-white'
+                                                : 'text-black-700 hover:text-gray-900 hover:bg-gray-100'
+                                        }`}>
+                                            {item.name}
+                                        </span>
+                                    }
+                                >
+                                    {item.children.map((child) => (
+                                        <DropdownItem key={child.name}>
+                                            <Link to={child.path} className="block w-full">
+                                                {child.name}
+                                            </Link>
+                                        </DropdownItem>
+                                    ))}
+                                </Dropdown>
+                            );
+                        } else {
+                            // Render regular link for items without children
+                            return (
+                                <Link
+                                    key={item.name}
+                                    to={item.path}
+                                    className={`py-2 px-3 text-sm font-medium rounded-lg transition-colors ${
+                                        isActive(item.path)
+                                            ? 'bg-red-500 text-white'
+                                            : 'text-black-700 hover:text-gray-900 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    {item.name}
+                                </Link>
+                            );
+                        }
+                    })}
                 </div>
 
                 {/* Right side - Add Offertory, Notification, User Profile */}

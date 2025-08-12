@@ -11,10 +11,12 @@ import SignInPage from './pages/signin'
 import Overview from './pages/overview'
 import Transactions from './pages/transactions'
 import Budget from './pages/budget'
+import { BudgetHeads } from './pages/budgetHeads'
 import Receipts from './pages/receipts'
 import Emails from './pages/emails'
 import { AppLayout } from './components/AppLayout';
 import { ThemeProvider } from './components/ThemeProvider';
+import { AuthProvider } from './context/AuthContext';
 
 
 const AppRoutes = () => {
@@ -31,9 +33,14 @@ const AppRoutes = () => {
             <Transactions />
           </Protect>
         } />
-        <Route path="/budget" element={
+        <Route path="/budget/year" element={
           <Protect fallback={<Navigate to="sign-in" replace />}>
             <Budget />
+          </Protect>
+        } />
+        <Route path="/budget/heads" element={
+          <Protect fallback={<Navigate to="sign-in" replace />}>
+            <BudgetHeads />
           </Protect>
         } />
         <Route path="/receipts" element={
@@ -57,9 +64,11 @@ function App() {
 
   return (
     <ThemeProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
+      <AuthProvider>
+        <Router>
+          <AppRoutes />
+        </Router>
+      </AuthProvider>
     </ThemeProvider>
   )
 }

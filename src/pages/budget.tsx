@@ -1,6 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, Button, TextInput } from "flowbite-react";
 import { useState } from "react";
-import { AddBudgetHeadModal } from "../components/AddBudgetHeadModal";
+import { AddBudgetHeadModal } from "../components/addBudgetModal";
 
 interface BudgetHeadData {
   head: string;
