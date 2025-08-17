@@ -59,6 +59,12 @@ export default function Budget() {
   const [expensePage, setExpensePage] = useState(1);
   const [incomeTotal, setIncomeTotal] = useState(0);
   const [expenseTotal, setExpenseTotal] = useState(0);
+  const [incomeTotalPages, setIncomeTotalPages] = useState(0);
+  const [expenseTotalPages, setExpenseTotalPages] = useState(0);
+  const [incomeHasNext, setIncomeHasNext] = useState(false);
+  const [expenseHasNext, setExpenseHasNext] = useState(false);
+  const [incomeHasPrev, setIncomeHasPrev] = useState(false);
+  const [expenseHasPrev, setExpenseHasPrev] = useState(false);
   const [pageSize] = useState(20);
 
   // Search state
@@ -152,6 +158,9 @@ export default function Budget() {
     const setIsLoading = type === 'income' ? setIsLoadingIncome : setIsLoadingExpense;
     const setData = type === 'income' ? setIncomeData : setExpenseData;
     const setTotal = type === 'income' ? setIncomeTotal : setExpenseTotal;
+    const setTotalPages = type === 'income' ? setIncomeTotalPages : setExpenseTotalPages;
+    const setHasNext = type === 'income' ? setIncomeHasNext : setExpenseHasNext;
+    const setHasPrev = type === 'income' ? setIncomeHasPrev : setExpenseHasPrev;
 
     setIsLoading(true);
     try {
@@ -162,23 +171,32 @@ export default function Budget() {
       const response = await axiosInstance.get(url);
       console.log('API Response:', response.data);
 
-      // Safely extract data and total with fallbacks
+      // Safely extract data and pagination with fallbacks
       const responseData = response.data?.data || [];
-      const responseTotal = response.data?.total || 0;
+      const pagination = response.data?.pagination || {};
 
       // Ensure data is an array and contains valid objects
       if (Array.isArray(responseData)) {
         setData(responseData);
-        setTotal(responseTotal);
+        setTotal(pagination.total || 0);
+        setTotalPages(pagination.total_pages || 0);
+        setHasNext(pagination.has_next || false);
+        setHasPrev(pagination.has_prev || false);
       } else {
         console.error('Invalid data format received:', responseData);
         setData([]);
         setTotal(0);
+        setTotalPages(0);
+        setHasNext(false);
+        setHasPrev(false);
       }
     } catch (error) {
       console.error(`Error fetching ${type} data:`, error);
       setData([]);
       setTotal(0);
+      setTotalPages(0);
+      setHasNext(false);
+      setHasPrev(false);
     } finally {
       setIsLoading(false);
     }
@@ -379,14 +397,14 @@ export default function Budget() {
 
         <div className="flex items-center justify-between p-4 border-t border-gray-200">
           <div className="text-sm text-gray-500">
-            Showing <span className="font-medium">{((incomePage - 1) * pageSize) + 1}</span> to <span className="font-medium">{Math.min(incomePage * pageSize, incomeTotal)}</span> of <span className="font-medium">{incomeTotal}</span> entries
+            Showing <span className="font-medium">{((incomePage - 1) * pageSize) + 1}</span> to <span className="font-medium">{Math.min(incomePage * pageSize, incomeTotal)}</span> of <span className="font-medium">{incomeTotal}</span> entries (Page {incomePage} of {incomeTotalPages})
           </div>
           <div className="flex items-center space-x-2">
             <Button
               size="sm"
               color="gray"
               className="px-3 py-1"
-              disabled={incomePage === 1}
+              disabled={!incomeHasPrev}
               onClick={() => {
                 setIncomePage(incomePage - 1);
                 fetchBudgetData('income', incomePage - 1, debouncedIncomeSearchTerm);
@@ -394,27 +412,40 @@ export default function Budget() {
             >
               <span>‹</span>
             </Button>
-            {Array.from({ length: Math.min(5, Math.ceil(incomeTotal / pageSize)) }, (_, i) => {
-              const pageNum = i + 1;
-              return (
-                <Button
-                  key={pageNum}
-                  size="sm"
-                  className={`px-3 py-1 ${incomePage === pageNum ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
-                  onClick={() => {
-                    setIncomePage(pageNum);
-                    fetchBudgetData('income', pageNum, debouncedIncomeSearchTerm);
-                  }}
-                >
-                  {pageNum}
-                </Button>
-              );
-            })}
+            {(() => {
+              const totalPages = incomeTotalPages;
+              const currentPage = incomePage;
+              const maxVisiblePages = 5;
+              
+              let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+              let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+              
+              if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+              }
+              
+              return Array.from({ length: endPage - startPage + 1 }, (_, i) => {
+                const pageNum = startPage + i;
+                return (
+                  <Button
+                    key={pageNum}
+                    size="sm"
+                    className={`px-3 py-1 ${currentPage === pageNum ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
+                    onClick={() => {
+                      setIncomePage(pageNum);
+                      fetchBudgetData('income', pageNum, debouncedIncomeSearchTerm);
+                    }}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              });
+            })()}
             <Button
               size="sm"
               color="gray"
               className="px-3 py-1"
-              disabled={incomePage >= Math.ceil(incomeTotal / pageSize)}
+              disabled={!incomeHasNext}
               onClick={() => {
                 setIncomePage(incomePage + 1);
                 fetchBudgetData('income', incomePage + 1, debouncedIncomeSearchTerm);
@@ -524,14 +555,14 @@ export default function Budget() {
         {/* Expenses Pagination */}
         <div className="flex items-center justify-between p-4 border-t border-gray-200">
           <div className="text-sm text-gray-500">
-            Showing <span className="font-medium">{((expensePage - 1) * pageSize) + 1}</span> to <span className="font-medium">{Math.min(expensePage * pageSize, expenseTotal)}</span> of <span className="font-medium">{expenseTotal}</span> entries
+            Showing <span className="font-medium">{((expensePage - 1) * pageSize) + 1}</span> to <span className="font-medium">{Math.min(expensePage * pageSize, expenseTotal)}</span> of <span className="font-medium">{expenseTotal}</span> entries (Page {expensePage} of {expenseTotalPages})
           </div>
           <div className="flex items-center space-x-2">
             <Button
               size="sm"
               color="gray"
               className="px-3 py-1"
-              disabled={expensePage === 1}
+              disabled={!expenseHasPrev}
               onClick={() => {
                 setExpensePage(expensePage - 1);
                 fetchBudgetData('expense', expensePage - 1, debouncedExpenseSearchTerm);
@@ -539,27 +570,40 @@ export default function Budget() {
             >
               <span>‹</span>
             </Button>
-            {Array.from({ length: Math.min(5, Math.ceil(expenseTotal / pageSize)) }, (_, i) => {
-              const pageNum = i + 1;
-              return (
-                <Button
-                  key={pageNum}
-                  size="sm"
-                  className={`px-3 py-1 ${expensePage === pageNum ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
-                  onClick={() => {
-                    setExpensePage(pageNum);
-                    fetchBudgetData('expense', pageNum, debouncedExpenseSearchTerm);
-                  }}
-                >
-                  {pageNum}
-                </Button>
-              );
-            })}
+            {(() => {
+              const totalPages = expenseTotalPages;
+              const currentPage = expensePage;
+              const maxVisiblePages = 5;
+              
+              let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+              let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+              
+              if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+              }
+              
+              return Array.from({ length: endPage - startPage + 1 }, (_, i) => {
+                const pageNum = startPage + i;
+                return (
+                  <Button
+                    key={pageNum}
+                    size="sm"
+                    className={`px-3 py-1 ${currentPage === pageNum ? 'bg-blue-600 text-white' : 'text-gray-700'}`}
+                    onClick={() => {
+                      setExpensePage(pageNum);
+                      fetchBudgetData('expense', pageNum, debouncedExpenseSearchTerm);
+                    }}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              });
+            })()}
             <Button
               size="sm"
               color="gray"
               className="px-3 py-1"
-              disabled={expensePage >= Math.ceil(expenseTotal / pageSize)}
+              disabled={!expenseHasNext}
               onClick={() => {
                 setExpensePage(expensePage + 1);
                 fetchBudgetData('expense', expensePage + 1, debouncedExpenseSearchTerm);
