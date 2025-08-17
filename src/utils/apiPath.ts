@@ -1,10 +1,12 @@
-const API_BASE_URL = '/api/v1';
+const API_BASE_URL = '';
 
 export const API_PATHS = {
   // Budget Management
-  BUDGET_HEADS: ``,
+  BUDGET_HEADS: `get-heads`,
   BUDGET_HEAD: (id: string) => `${API_BASE_URL}/budget-heads/${id}`,
-  CREATE_BUDGET_HEAD: `${API_BASE_URL}/budget-heads`,
+  CREATE_BUDGET: `/add-budget`,
+  FISCAL_YEARS: `/get-years`,
+  GET_BUDGET: (type: string, page: number = 1, limit: number = 20) => `get-budget?type=${type}&page=${page}&limit=${limit}`,
   
   // Budget Overview
   BUDGET_OVERVIEW: `${API_BASE_URL}/budget/overview`,
