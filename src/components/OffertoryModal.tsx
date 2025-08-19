@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Label } from 'flowbite-react';
+import useAxios from '../context/useAxios';
+import { API_PATHS } from '../utils/apiPath';
 
 interface OffertoryData {
   firstOffertory: string;
@@ -31,6 +33,17 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
 
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const axiosInstance = useAxios();
+
+  // Helper function to format date to DD/MM/YYYY
+  const formatDateToDDMMYYYY = (dateString: string): string => {
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
 
   const handleInputChange = (field: keyof OffertoryData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -75,17 +88,36 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
     
     setIsSaving(true);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Prepare data for API call
+      const apiData = {
+        date: formData.sundaySchoolDate ? formatDateToDDMMYYYY(formData.sundaySchoolDate) : formatDateToDDMMYYYY(new Date().toISOString()),
+        first_offertory: parseFloat(formData.firstOffertory) || 0,
+        second_offertory: parseFloat(formData.secondOffertory) || 0,
+        sunday_school: parseFloat(formData.sundaySchool) || 0,
+        tithes: formData.tithes
+          .filter(tithe => tithe.name.trim() && tithe.amount.trim()) // Only include filled tithes
+          .map(tithe => ({
+            name: tithe.name.trim(),
+            amount: parseFloat(tithe.amount) || 0,
+            mode_of_payment: tithe.modeOfPayment.toLowerCase(),
+            payment_reference: tithe.modeOfPayment === 'Cash' ? '' : tithe.upiChequeNo.trim()
+          }))
+      };
+
+      // Make API call
+      const response = await axiosInstance.post(API_PATHS.CREATE_OFFERTORY, apiData);
       
-      // Call the onSave callback with the form data
+      console.log('Offertory saved successfully:', response.data);
+      
+      // Call the onSave callback with the response data
       onSave(formData);
       
       // Reset form and close
       resetForm();
       onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving offertory:', error);
+      setErrorMessage(error.response?.data?.message || error.message || 'Failed to save offertory. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -108,6 +140,7 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
       tithes: [{ name: '', amount: '', modeOfPayment: 'Cash', upiChequeNo: '' }]
     });
     setHasUnsavedChanges(false);
+    setErrorMessage('');
   };
 
   // Reset form when modal opens and focus first input
@@ -142,9 +175,21 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
         <h2 className="text-2xl font-bold text-gray-900">Offertory Details</h2>
       </ModalHeader>
       
-      <ModalBody className="bg-gray-100">
+            <ModalBody className="bg-gray-100">
         <div className="space-y-6">
-            {/* First and Second Offertory Section */}
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                {errorMessage}
+              </div>
+            </div>
+          )}
+          
+          {/* First and Second Offertory Section */}
             <div className="grid grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="firstOffertory" className="block text-sm font-medium text-gray-700 mb-2">

@@ -32,6 +32,9 @@ export const API_PATHS = {
   NOTIFICATIONS: `${API_BASE_URL}/notifications`,
   NOTIFICATION_READ: (notificationId: string) => `${API_BASE_URL}/notifications/${notificationId}/read`,
   
+  // Offertory
+  CREATE_OFFERTORY: `${API_BASE_URL}/add-offertory`,
+  
   // Add other budget-related paths as needed
 } as const;
 
