@@ -34,6 +34,9 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [titheNameSuggestions, setTitheNameSuggestions] = useState<string[]>([]);
+  const [showTitheSuggestions, setShowTitheSuggestions] = useState<number | null>(null); // Track which tithe index is showing suggestions
+  const [isLoadingTitheNames, setIsLoadingTitheNames] = useState(false);
   const axiosInstance = useAxios();
 
   // Helper function to format date to DD/MM/YYYY
@@ -43,6 +46,63 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
+  };
+
+  // Function to fetch tithe name suggestions
+  const fetchTitheNameSuggestions = async (searchTerm: string, titheIndex: number) => {
+    if (searchTerm.trim().length < 2) {
+      setTitheNameSuggestions([]);
+      setShowTitheSuggestions(null);
+      return;
+    }
+
+    setIsLoadingTitheNames(true);
+    try {
+      const response = await axiosInstance.get(`${API_PATHS.GET_TITHE_NAMES}?search=${encodeURIComponent(searchTerm)}`);
+      console.log('API Response:', response.data); // Debug log
+      
+      // Extract names from the tithe entries
+      const titheEntries = response.data.data || [];
+      const suggestions = titheEntries.map((entry: any) => entry.name);
+      console.log('Extracted names:', suggestions); // Debug log
+      
+      setTitheNameSuggestions(suggestions);
+      if (suggestions.length > 0) {
+        setShowTitheSuggestions(titheIndex);
+      }
+    } catch (error) {
+      console.error('Error fetching tithe name suggestions:', error);
+      setTitheNameSuggestions([]);
+      setShowTitheSuggestions(null);
+    } finally {
+      setIsLoadingTitheNames(false);
+    }
+  };
+
+  // Debounced search function
+  const debouncedSearch = (() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    return (searchTerm: string, titheIndex: number) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        fetchTitheNameSuggestions(searchTerm, titheIndex);
+      }, 300);
+    };
+  })();
+
+  // Handle suggestion selection
+  const handleSuggestionSelect = (index: number, suggestion: string) => {
+    handleTitheChange(index, 'name', suggestion);
+    setShowTitheSuggestions(null);
+    setTitheNameSuggestions([]);
+  };
+
+  // Handle input blur
+  const handleInputBlur = (index: number) => {
+    // Small delay to allow suggestion click to register first
+    setTimeout(() => {
+      setShowTitheSuggestions(null);
+    }, 100);
   };
 
   const handleInputChange = (field: keyof OffertoryData, value: string) => {
@@ -58,6 +118,11 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
       )
     }));
     setHasUnsavedChanges(true);
+
+    // If updating name field, trigger autocomplete search
+    if (field === 'name') {
+      debouncedSearch(value, index);
+    }
   };
 
   const addMoreTithes = () => {
@@ -141,6 +206,8 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
     });
     setHasUnsavedChanges(false);
     setErrorMessage('');
+    setTitheNameSuggestions([]);
+    setShowTitheSuggestions(null);
   };
 
   // Reset form when modal opens and focus first input
@@ -172,7 +239,7 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
   return (
     <Modal show={isOpen} onClose={handleClose} size="4xl" className="[&>*]:!bg-gray-100 [&_*]:!text-gray-900">
       <ModalHeader className="bg-gray-100 border-gray-200">
-        <h2 className="text-2xl font-bold text-gray-900">Offertory Details</h2>
+        <div className="text-2xl font-bold text-gray-900">Offertory Details</div>
       </ModalHeader>
       
             <ModalBody className="bg-gray-100">
@@ -308,9 +375,15 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
                       <div className="relative">
                         <input
                           type="text"
-                          placeholder="Input text"
+                          placeholder="Start typing to search names..."
                           value={tithe.name}
                           onChange={(e) => handleTitheChange(index, 'name', e.target.value)}
+                          onFocus={() => {
+                            if (tithe.name.trim().length >= 2 && titheNameSuggestions.length > 0) {
+                              setShowTitheSuggestions(index);
+                            }
+                          }}
+                          onBlur={() => handleInputBlur(index)}
                           className="w-full px-3 py-2 bg-white border border-gray-300 text-gray-900 placeholder-gray-500 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none"
                         />
                         <button
@@ -322,6 +395,36 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
                           </svg>
                         </button>
+
+                        {/* Autocomplete Suggestions Dropdown */}
+                        {showTitheSuggestions === index && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            {isLoadingTitheNames ? (
+                              <div className="p-3 text-center text-gray-500">
+                                <div className="inline-flex items-center">
+                                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  Searching...
+                                </div>
+                              </div>
+                            ) : titheNameSuggestions.length > 0 ? (
+                              titheNameSuggestions.map((suggestion, suggestionIndex) => (
+                                <button
+                                  key={suggestionIndex}
+                                  type="button"
+                                  className="w-full px-3 py-2 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none border-b border-gray-100 last:border-b-0"
+                                  onClick={() => handleSuggestionSelect(index, suggestion)}
+                                >
+                                  <div className="font-medium text-gray-900">{suggestion}</div>
+                                </button>
+                              ))
+                            ) : (
+                              <div className="p-3 text-center text-gray-500">No matching names found</div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
