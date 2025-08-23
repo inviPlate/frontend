@@ -13,7 +13,7 @@ export const API_PATHS = {
   BUDGET_YEAR: (year: string) => `${API_BASE_URL}/budget/year/${year}`,
   
   // Transactions
-  TRANSACTIONS: `${API_BASE_URL}/transactions`,
+  TRANSACTIONS: `${API_BASE_URL}/get-transactions`,
   TRANSACTION: (id: string) => `${API_BASE_URL}/transactions/${id}`,
   
   // Receipts
@@ -34,6 +34,7 @@ export const API_PATHS = {
   
   // Offertory
   CREATE_OFFERTORY: `${API_BASE_URL}/add-offertory`,
+  GET_OFFERTORY: `${API_BASE_URL}/get-offertory`,
   GET_TITHE_NAMES: `${API_BASE_URL}/get-tithe`,
   
   // Add other budget-related paths as needed

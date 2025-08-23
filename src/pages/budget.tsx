@@ -1,6 +1,7 @@
-import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, Button, TextInput, Dropdown, DropdownItem } from "flowbite-react";
+import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, Button, TextInput } from "flowbite-react";
 import { useState, useEffect, useCallback } from "react";
 import { AddBudgetHeadModal } from "../components/addBudgetModal";
+import YearSelector from "../components/YearSelector";
 import useAxios from "../context/useAxios";
 import { API_PATHS } from "../utils/apiPath";
 
@@ -77,30 +78,13 @@ export default function Budget() {
 
   const axiosInstance = useAxios();
 
-  // Fetch fiscal years from API
-  useEffect(() => {
-    const fetchFiscalYears = async () => {
-      setIsLoadingYears(true);
-      try {
-        const response = await axiosInstance.get(API_PATHS.FISCAL_YEARS);
-        const years = response.data.data || [];
-        console.log('Fiscal years fetched:', years);
-        setFiscalYears(years);
 
-        // Set default year if available
-        if (years.length > 0 && !years.find((y: { year: string }) => y.year === selectedYear)) {
-          console.log('Setting default year to:', years[0].year);
-          setSelectedYear(years[0].year);
-        }
-      } catch (error) {
-        console.error('Error fetching fiscal years:', error);
-      } finally {
-        setIsLoadingYears(false);
-      }
-    };
 
-    fetchFiscalYears();
-  }, [axiosInstance, selectedYear]);
+  // Get the current year ID from the selected year
+  const getCurrentYearId = () => {
+    const currentYear = fiscalYears.find(year => year.year === selectedYear);
+    return currentYear?.id;
+  };
 
   // Fetch budget data when year changes or component mounts
   useEffect(() => {
@@ -109,7 +93,7 @@ export default function Budget() {
     }
   }, [selectedYear, incomePage, expensePage, debouncedIncomeSearchTerm, debouncedExpenseSearchTerm]);
 
-  // Initial data fetch after fiscal years are loaded
+  // Initial data fetch after component mounts and year is selected
   useEffect(() => {
     console.log('Initial data fetch useEffect triggered:', {
       fiscalYearsLength: fiscalYears.length,
@@ -120,7 +104,7 @@ export default function Budget() {
       console.log('Calling fetchAllBudgetData from initial useEffect');
       fetchAllBudgetData();
     }
-  }, [fiscalYears]); // Run when fiscal years are loaded
+  }, [fiscalYears, selectedYear]); // Run when either fiscalYears or selectedYear changes
 
   const handleYearChange = (yearId: string) => {
     setSelectedYear(yearId);
@@ -144,11 +128,7 @@ export default function Budget() {
     // API call will be triggered by useEffect when debounced value changes
   };
 
-  // Get the current year ID from the selected year
-  const getCurrentYearId = () => {
-    const currentYear = fiscalYears.find(year => year.year === selectedYear);
-    return currentYear?.id;
-  };
+
 
   // Fetch budget data from API
   const fetchBudgetData = async (type: 'income' | 'expense', page: number = 1, searchTerm: string = '') => {
@@ -267,33 +247,15 @@ export default function Budget() {
         <p className="text-gray-600">Manage and organize your year budget and income sources</p>
 
         {/* Year Selector */}
-        <div className="flex items-center space-x-4 mt-4">
-          <label className="text-sm font-medium text-gray-700">
-            Fiscal Year:
-          </label>
-          <Dropdown
-            label={
-              <span className="flex items-center space-x-2">
-                {isLoadingYears ? (
-                  <svg className="animate-spin h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : (
-                  <span>{selectedYear}</span>
-                )}
-              </span>
-            }
-            className="w-48"
-            disabled={isLoadingYears}
-          >
-            {fiscalYears.map((year) => (
-              <DropdownItem key={year.id} onClick={() => handleYearChange(year.year)}>
-                {year.year}
-              </DropdownItem>
-            ))}
-          </Dropdown>
-        </div>
+        <YearSelector
+          selectedYear={selectedYear}
+          onYearChange={handleYearChange}
+          onYearsLoaded={useCallback((years: Array<{ id: number; year: string; is_active: boolean; is_deleted: boolean }>) => {
+            setFiscalYears(years);
+            // Don't automatically set year - let user select or keep current selection
+            console.log('Fiscal years loaded:', years);
+          }, [])}
+        />
         {errorMessage && (
           <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded">
             {errorMessage}
