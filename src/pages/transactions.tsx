@@ -4,6 +4,7 @@ import { useOffertoryModal } from '../context/OffertoryModalContext';
 import YearSelector from '../components/YearSelector';
 import useAxios from '../context/useAxios';
 import { API_PATHS } from '../utils/apiPath';
+import { AddTransactionModal } from '../components/AddTransactionModal';
 
 interface OffertoryData {
   id: number;
@@ -94,6 +95,9 @@ export default function Transactions() {
   const [transactionsHasPrev, setTransactionsHasPrev] = useState(false);
   const [transactionsPageSize] = useState(10);
   
+  // Transaction modal state
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  
   // Offertory pagination state
   const [offertoryPage, setOffertoryPage] = useState(1);
   const [offertoryTotal, setOffertoryTotal] = useState(0);
@@ -109,6 +113,17 @@ export default function Transactions() {
   const getCurrentYearId = () => {
     const currentYear = fiscalYears.find(year => year.year === selectedYear);
     return currentYear?.id;
+  };
+
+  // Handle saving new transaction (now just for refreshing data)
+  const handleSaveTransaction = async (transactionData: any) => {
+    try {
+      // Refresh the transactions data after successful save
+      fetchTransactionsData(transactionsPage);
+      console.log('Transaction data refreshed');
+    } catch (error) {
+      console.error('Error refreshing transaction data:', error);
+    }
   };
 
   // Fetch offertory data from API
@@ -357,7 +372,11 @@ export default function Transactions() {
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">Transactions</h2>
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 rounded-full p-2">
+              <Button 
+                size="sm" 
+                className="bg-blue-600 hover:bg-blue-700 rounded-full p-2"
+                onClick={() => setIsTransactionModalOpen(true)}
+              >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                 </svg>
@@ -494,6 +513,14 @@ export default function Transactions() {
           </div>
         </div>
       </div>
+
+      {/* Add Transaction Modal */}
+      <AddTransactionModal
+        isOpen={isTransactionModalOpen}
+        onClose={() => setIsTransactionModalOpen(false)}
+        onSave={handleSaveTransaction}
+        yearId={getCurrentYearId() || 0}
+      />
     </div>
   );
 }

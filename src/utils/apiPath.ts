@@ -14,6 +14,7 @@ export const API_PATHS = {
   
   // Transactions
   TRANSACTIONS: `${API_BASE_URL}/get-transactions`,
+  ADD_TRANSACTIONS: `${API_BASE_URL}/add-transaction`,
   TRANSACTION: (id: string) => `${API_BASE_URL}/transactions/${id}`,
   
   // Receipts
