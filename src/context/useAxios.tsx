@@ -4,7 +4,7 @@ import { useAuthContext } from './AuthContext';
 // import { faro } from '../utils/faroConfig';
 
 const useAxios = () => {
-  const { jwt } = useAuthContext();
+  const { jwt, refreshJwt } = useAuthContext();
   
   // Create axios instance inside the hook
   const axiosInstance = useMemo(() => {
@@ -45,12 +45,32 @@ const useAxios = () => {
       (response) => {
         return response;
       },
-      (error) => {
-        if (error.response && error.response.status === 401) {
-          console.log('Received 401 error, redirecting to root');
-          // Handle unauthorized errors
-          // window.location.href = '/';
+      async (error) => {
+        const originalRequest = error.config;
+        
+        if (error.response && error.response.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+          
+          console.log('Received 401 error, attempting to refresh JWT');
+          
+          try {
+            const newJwt = await refreshJwt();
+            if (newJwt) {
+              console.log('JWT refreshed successfully, retrying request');
+              // Update the Authorization header with the new token
+              originalRequest.headers.Authorization = `Bearer ${newJwt}`;
+              // Retry the original request
+              return axiosInstance(originalRequest);
+            } else {
+              console.log('Failed to refresh JWT, redirecting to sign in');
+              window.location.href = '/sign-in';
+            }
+          } catch (refreshError) {
+            console.error('Error during JWT refresh:', refreshError);
+            window.location.href = '/sign-in';
+          }
         }
+        
         return Promise.reject(error);
       }
     );
@@ -60,7 +80,7 @@ const useAxios = () => {
       axiosInstance.interceptors.request.eject(requestInterceptor);
       axiosInstance.interceptors.response.eject(responseInterceptor);
     };
-  }, [jwt, axiosInstance]);
+  }, [jwt, axiosInstance, refreshJwt]);
 
   return axiosInstance;
 }

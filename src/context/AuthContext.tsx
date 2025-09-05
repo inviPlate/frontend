@@ -15,6 +15,7 @@ interface AuthContextType {
   sessionToken: string | null;
   loading: boolean;
   signOut: () => void;
+  refreshJwt: () => Promise<string | null>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
   sessionToken: null,
   loading: true,
   signOut: () => {},
+  refreshJwt: async () => null,
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -49,42 +51,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (jwt) {
       const checkJwtExpiration = async () => {
-        if (browserStorage.isJwtExpired()) {
-          console.log('JWT expired, attempting to refresh');
+        // Add a 5-minute buffer before actual expiry to refresh proactively
+        const bufferTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+        
+        if (browserStorage.isJwtExpired(bufferTime)) {
+          console.log('JWT expiring soon or expired, attempting to refresh');
           try {
-            // Get new JWT from Clerk with echo_default template
+            // Get new JWT from Clerk with inviplate template
             const newJwt = await getToken({ template: 'inviplate' });
             if (newJwt) {
               console.log('Successfully refreshed JWT');
               const authData = browserStorage.getAuthData();
               if (authData) {
-              browserStorage.setAuthData({
+                browserStorage.setAuthData({
                   ...authData,
                   jwt: newJwt,
-              });
+                });
                 setJwt(newJwt);
               }
               return;
             }
           } catch (error) {
             console.error('Error refreshing JWT:', error);
+            // Don't immediately clear auth data on first failure
+            // The user might still be authenticated with Clerk
           }
-          
-          // If we couldn't refresh the JWT, then clear auth data
-          console.log('Failed to refresh JWT, clearing auth data');
-          browserStorage.clearAuthData();
-          setUser(null);
-          setJwt(null);
-          setSessionToken(null);
         }
       };
 
       const jwtExpiry = browserStorage.getJwtExpiry();
       if (jwtExpiry) {
-        const timeUntilExpiry = jwtExpiry - Date.now();
-        console.log(`Setting JWT expiry timeout for ${Math.round(timeUntilExpiry / 1000)} seconds`);
+        // Set refresh to happen 5 minutes before expiry
+        const bufferTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+        const timeUntilRefresh = Math.max(0, jwtExpiry - Date.now() - bufferTime);
         
-        const timeout = setTimeout(checkJwtExpiration, timeUntilExpiry);
+        console.log(`Setting JWT refresh timeout for ${Math.round(timeUntilRefresh / 1000)} seconds (5 min before expiry)`);
+        
+        const timeout = setTimeout(checkJwtExpiration, timeUntilRefresh);
         return () => clearTimeout(timeout);
       }
     }
@@ -163,8 +166,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const refreshJwt = async () => {
+    try {
+      const newJwt = await getToken({ template: 'inviplate' });
+      if (newJwt) {
+        const authData = browserStorage.getAuthData();
+        if (authData) {
+          browserStorage.setAuthData({
+            ...authData,
+            jwt: newJwt,
+          });
+          setJwt(newJwt);
+        }
+        return newJwt;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error refreshing JWT:', error);
+      return null;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, jwt, sessionToken, loading, signOut }}>
+    <AuthContext.Provider value={{ user, jwt, sessionToken, loading, signOut, refreshJwt }}>
       {children}
     </AuthContext.Provider>
   );

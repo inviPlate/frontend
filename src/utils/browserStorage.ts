@@ -102,10 +102,10 @@ interface AuthData {
           return this.exists(BrowserStorage.JWT_KEY) && this.exists(BrowserStorage.SESSION_KEY);
       }
   
-      isJwtExpired(): boolean {
+      isJwtExpired(bufferTime: number = 0): boolean {
           const expiry = this.getItem<number>(BrowserStorage.JWT_EXPIRY_KEY);
           if (!expiry) return true;
-              return Date.now() >= expiry;
+          return Date.now() >= (expiry - bufferTime);
       }
   
       getJwtExpiry(): number | null {

@@ -34,7 +34,7 @@ export const API_PATHS = {
   NOTIFICATION_READ: (notificationId: string) => `${API_BASE_URL}/notifications/${notificationId}/read`,
   
   // Offertory
-  CREATE_OFFERTORY: `${API_BASE_URL}/add-offertory`,
+  CREATE_OFFERTORY: `${API_BASE_URL}/`,
   GET_OFFERTORY: `${API_BASE_URL}/get-offertory`,
   GET_TITHE_NAMES: `${API_BASE_URL}/get-tithe`,
   

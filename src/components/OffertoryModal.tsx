@@ -1,19 +1,31 @@
 import { useState, useEffect } from 'react';
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Label } from 'flowbite-react';
 import useAxios from '../context/useAxios';
+import useAxiosDev from '../context/useAxiosDev';
 import { API_PATHS } from '../utils/apiPath';
+import { HeadAutocomplete } from './HeadAutocomplete';
 
 interface OffertoryData {
   firstOffertory: string;
   secondOffertory: string;
   sundaySchool: string;
-  sundaySchoolDate: string;
+  offertoryDate: string;
+  others?: string;
+  note?: string;
+  OthersHeadID?: string;
   tithes: Array<{
     name: string;
     amount: string;
     modeOfPayment: 'Cash' | 'Cheque' | 'UPI';
     upiChequeNo: string;
   }>;
+}
+
+interface HeadSuggestion {
+  id: number;
+  head: string;
+  particulars: string;
+  type: 'income' | 'expense';
 }
 
 interface OffertoryModalProps {
@@ -27,7 +39,10 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
     firstOffertory: '',
     secondOffertory: '',
     sundaySchool: '',
-    sundaySchoolDate: '',
+    offertoryDate: '',
+    others: '',
+    note: '',
+    OthersHeadID: undefined,
     tithes: [{ name: '', amount: '', modeOfPayment: 'Cash', upiChequeNo: '' }]
   });
 
@@ -38,7 +53,7 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
   const [showTitheSuggestions, setShowTitheSuggestions] = useState<number | null>(null); // Track which tithe index is showing suggestions
   const [isLoadingTitheNames, setIsLoadingTitheNames] = useState(false);
   const axiosInstance = useAxios();
-
+  const axiosInstanceDev = useAxiosDev();
   // Helper function to format date to DD/MM/YYYY
   const formatDateToDDMMYYYY = (dateString: string): string => {
     const date = new Date(dateString);
@@ -110,6 +125,11 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
     setHasUnsavedChanges(true);
   };
 
+  const handleHeadSelect = (head: HeadSuggestion) => {
+    setFormData(prev => ({ ...prev, OthersHeadID: head.head }));
+    setHasUnsavedChanges(true);
+  };
+
   const handleTitheChange = (index: number, field: keyof OffertoryData['tithes'][0], value: string) => {
     setFormData(prev => ({
       ...prev,
@@ -146,7 +166,7 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
   const handleSave = async () => {
     // Validate form data
     if (!formData.firstOffertory.trim() && !formData.secondOffertory.trim() && 
-        !formData.sundaySchool.trim() && formData.tithes.every(t => !t.name.trim() && !t.amount.trim())) {
+        !formData.sundaySchool.trim() && !formData.others?.trim() && !formData.OthersHeadID && formData.tithes.every(t => !t.name.trim() && !t.amount.trim())) {
       console.error('Please fill in at least one field');
       return;
     }
@@ -155,10 +175,13 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
     try {
       // Prepare data for API call
       const apiData = {
-        date: formData.sundaySchoolDate ? formatDateToDDMMYYYY(formData.sundaySchoolDate) : formatDateToDDMMYYYY(new Date().toISOString()),
+        date: formData.offertoryDate ? formatDateToDDMMYYYY(formData.offertoryDate) : formatDateToDDMMYYYY(new Date().toISOString()),
         first_offertory: parseFloat(formData.firstOffertory) || 0,
         second_offertory: parseFloat(formData.secondOffertory) || 0,
         sunday_school: parseFloat(formData.sundaySchool) || 0,
+        others: formData.others,
+        notes: formData.note,
+        others_head_id: formData.OthersHeadID,
         tithes: formData.tithes
           .filter(tithe => tithe.name.trim() && tithe.amount.trim()) // Only include filled tithes
           .map(tithe => ({
@@ -170,7 +193,7 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
       };
 
       // Make API call
-      const response = await axiosInstance.post(API_PATHS.CREATE_OFFERTORY, apiData);
+      const response = await axiosInstanceDev.post(API_PATHS.CREATE_OFFERTORY, apiData);
       
       console.log('Offertory saved successfully:', response.data);
       
@@ -197,13 +220,16 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
   };
 
   const resetForm = () => {
-    setFormData({
-      firstOffertory: '',
-      secondOffertory: '',
-      sundaySchool: '',
-      sundaySchoolDate: '',
-      tithes: [{ name: '', amount: '', modeOfPayment: 'Cash', upiChequeNo: '' }]
-    });
+          setFormData({
+        firstOffertory: '',
+        secondOffertory: '',
+        sundaySchool: '',
+        offertoryDate: '',
+        others: '',
+        note: '',
+        OthersHeadID: undefined,
+        tithes: [{ name: '', amount: '', modeOfPayment: 'Cash', upiChequeNo: '' }]
+      });
     setHasUnsavedChanges(false);
     setErrorMessage('');
     setTitheNameSuggestions([]);
@@ -345,8 +371,8 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
                 <div className="relative">
                   <input
                     type="date"
-                    value={formData.sundaySchoolDate}
-                    onChange={(e) => handleInputChange('sundaySchoolDate', e.target.value)}
+                    value={formData.offertoryDate}
+                    onChange={(e) => handleInputChange('offertoryDate', e.target.value)}
                     className="w-full px-3 py-2 bg-white border border-gray-300 text-gray-900 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none pl-10"
                   />
                   <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -355,6 +381,70 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
                 </div>
               </div>
             </div>
+
+            {/* Others and Note Section */}
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <Label htmlFor="others" className="block text-sm font-medium text-gray-700 mb-2">
+                  Others
+                </Label>
+                <div className="relative">
+                  <input
+                    id="others"
+                    type="text"
+                    placeholder="Others"
+                    value={formData.others}
+                    onChange={(e) => handleInputChange('others', e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 text-gray-900 placeholder-gray-500 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none pl-8"
+                  />
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">₹</span>
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={() => clearField('others')}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="note" className="block text-sm font-medium text-gray-700 mb-2">
+                  Note
+                </Label>
+                <div className="relative">
+                  <textarea
+                    id="note"
+                    placeholder="Add any notes (e.g., special instructions)"
+                    value={formData.note}
+                    onChange={(e) => handleInputChange('note', e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 bg-white border border-gray-300 text-gray-900 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none resize-none"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    onClick={() => clearField('note')}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Head Selection */}
+            <HeadAutocomplete
+              value={formData.OthersHeadID?.toString() ?? ''}
+              onChange={(value) => handleInputChange('OthersHeadID', value)}
+              onHeadSelect={handleHeadSelect}
+              placeholder="Start typing to search existing heads..."
+              label="Head for Others"
+              type="income"
+            />
 
             {/* Tithes Section */}
             <div className="border-t-2 border-blue-500 pt-4">
