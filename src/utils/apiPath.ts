@@ -38,6 +38,11 @@ export const API_PATHS = {
   GET_OFFERTORY: `${API_BASE_URL}/get-offertory`,
   GET_TITHE_NAMES: `${API_BASE_URL}/get-tithe`,
   
+  // Members
+  MEMBERS: `/get-members`,
+  ADD_MEMBER: '/add-member',
+  MEMBER: (id: string) => `${API_BASE_URL}/members/${id}`,
+  
   // Add other budget-related paths as needed
 } as const;
 

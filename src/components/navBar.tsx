@@ -27,7 +27,7 @@ export function NavBar() {
             ]
         },
         { name: 'Receipts', path: '/receipts' },
-        { name: 'Emails', path: '/emails' }
+        { name: 'Members', path: '/members' }
     ];
 
     const isActive = (path: string) => {

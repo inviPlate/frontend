@@ -13,7 +13,7 @@ import Transactions from './pages/transactions'
 import Budget from './pages/budget'
 import { BudgetHeads } from './pages/budgetHeads'
 import Receipts from './pages/receipts'
-import Emails from './pages/emails'
+import Members from './pages/members'
 import { AppLayout } from './components/AppLayout';
 import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './context/AuthContext';
@@ -50,9 +50,9 @@ const AppRoutes = () => {
             <Receipts />
           </Protect>
         } />
-        <Route path="/emails" element={
-          <Protect fallback={<Navigate to="/sign-in" state={{ from: { pathname: '/emails' } }} replace />}>
-            <Emails />
+        <Route path="/members" element={
+          <Protect fallback={<Navigate to="/sign-in" state={{ from: { pathname: '/members' } }} replace />}>
+            <Members />
           </Protect>
         } />
         <Route path="/sign-in" element={<SignInPage />} />
