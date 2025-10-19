@@ -13,9 +13,10 @@ interface AddMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: MemberData) => void;
+  prefilledName?: string;
 }
 
-export function AddMemberModal({ isOpen, onClose, onSave }: AddMemberModalProps) {
+export function AddMemberModal({ isOpen, onClose, onSave, prefilledName }: AddMemberModalProps) {
   const axios = useAxios();
   const [formData, setFormData] = useState<MemberData>({
     name: '',
@@ -82,7 +83,7 @@ export function AddMemberModal({ isOpen, onClose, onSave }: AddMemberModalProps)
 
   const resetForm = () => {
     setFormData({
-      name: '',
+      name: prefilledName || '',
       phone_number: '',
       email: ''
     });
@@ -102,7 +103,7 @@ export function AddMemberModal({ isOpen, onClose, onSave }: AddMemberModalProps)
         }
       }, 100);
     }
-  }, [isOpen]);
+  }, [isOpen, prefilledName]);
 
   const handleClose = () => {
     if (hasUnsavedChanges) {

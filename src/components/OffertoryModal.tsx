@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Label } from 'flowbite-react';
 import useAxios from '../context/useAxios';
-import useAxiosDev from '../context/useAxiosDev';
+import useAxiosDev from '../context/useAxiosDEV';
 import { API_PATHS } from '../utils/apiPath';
 import { HeadAutocomplete } from './HeadAutocomplete';
+import { AddMemberModal } from './AddMemberModal';
 
 interface OffertoryData {
   firstOffertory: string;
@@ -52,6 +53,9 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
   const [titheNameSuggestions, setTitheNameSuggestions] = useState<string[]>([]);
   const [showTitheSuggestions, setShowTitheSuggestions] = useState<number | null>(null); // Track which tithe index is showing suggestions
   const [isLoadingTitheNames, setIsLoadingTitheNames] = useState(false);
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [currentTitheIndex, setCurrentTitheIndex] = useState<number | null>(null);
+  const [prefilledMemberName, setPrefilledMemberName] = useState<string>('');
   const axiosInstance = useAxios();
   const axiosInstanceDev = useAxiosDev();
   // Helper function to format date to DD/MM/YYYY
@@ -73,7 +77,7 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
 
     setIsLoadingTitheNames(true);
     try {
-      const response = await axiosInstance.get(`${API_PATHS.GET_TITHE_NAMES}?search=${encodeURIComponent(searchTerm)}`);
+      const response = await axiosInstance.get(`${API_PATHS.MEMBERS}?search=${encodeURIComponent(searchTerm)}`);
       console.log('API Response:', response.data); // Debug log
       
       // Extract names from the tithe entries
@@ -113,11 +117,41 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
   };
 
   // Handle input blur
-  const handleInputBlur = (index: number) => {
+  const handleInputBlur = () => {
     // Small delay to allow suggestion click to register first
     setTimeout(() => {
       setShowTitheSuggestions(null);
     }, 100);
+  };
+
+  // Check if a name doesn't match any suggestions
+  const isNameNotInSuggestions = (name: string, index: number): boolean => {
+    if (!name.trim() || name.trim().length < 2) return false;
+    if (showTitheSuggestions !== index) return false;
+    return !titheNameSuggestions.some(suggestion => 
+      suggestion.toLowerCase() === name.toLowerCase()
+    );
+  };
+
+  // Handle opening AddMemberModal
+  const handleOpenAddMemberModal = (index: number) => {
+    setCurrentTitheIndex(index);
+    setPrefilledMemberName(formData.tithes[index].name);
+    setIsAddMemberModalOpen(true);
+  };
+
+  // Handle member added successfully
+  const handleMemberAdded = async (memberData: { name: string; phone_number: string; email: string }) => {
+    if (currentTitheIndex !== null) {
+      // Update the tithe name with the newly added member's name
+      handleTitheChange(currentTitheIndex, 'name', memberData.name);
+      
+      // Refresh suggestions to include the new member
+      await fetchTitheNameSuggestions(memberData.name, currentTitheIndex);
+    }
+    setIsAddMemberModalOpen(false);
+    setCurrentTitheIndex(null);
+    setPrefilledMemberName('');
   };
 
   const handleInputChange = (field: keyof OffertoryData, value: string) => {
@@ -234,6 +268,9 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
     setErrorMessage('');
     setTitheNameSuggestions([]);
     setShowTitheSuggestions(null);
+    setIsAddMemberModalOpen(false);
+    setCurrentTitheIndex(null);
+    setPrefilledMemberName('');
   };
 
   // Reset form when modal opens and focus first input
@@ -263,7 +300,8 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
   };
 
   return (
-    <Modal show={isOpen} onClose={handleClose} size="4xl" className="[&>*]:!bg-gray-100 [&_*]:!text-gray-900">
+    <>
+      <Modal show={isOpen} onClose={handleClose} size="4xl" className="[&>*]:!bg-gray-100 [&_*]:!text-gray-900">
       <ModalHeader className="bg-gray-100 border-gray-200">
         <div className="text-2xl font-bold text-gray-900">Offertory Details</div>
       </ModalHeader>
@@ -473,7 +511,7 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
                               setShowTitheSuggestions(index);
                             }
                           }}
-                          onBlur={() => handleInputBlur(index)}
+                          onBlur={handleInputBlur}
                           className="w-full px-3 py-2 bg-white border border-gray-300 text-gray-900 placeholder-gray-500 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none"
                         />
                         <button
@@ -500,18 +538,45 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
                                 </div>
                               </div>
                             ) : titheNameSuggestions.length > 0 ? (
-                              titheNameSuggestions.map((suggestion, suggestionIndex) => (
-                                <button
-                                  key={suggestionIndex}
-                                  type="button"
-                                  className="w-full px-3 py-2 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none border-b border-gray-100 last:border-b-0"
-                                  onClick={() => handleSuggestionSelect(index, suggestion)}
-                                >
-                                  <div className="font-medium text-gray-900">{suggestion}</div>
-                                </button>
-                              ))
+                              <>
+                                {titheNameSuggestions.map((suggestion, suggestionIndex) => (
+                                  <button
+                                    key={suggestionIndex}
+                                    type="button"
+                                    className="w-full px-3 py-2 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none border-b border-gray-100 last:border-b-0"
+                                    onClick={() => handleSuggestionSelect(index, suggestion)}
+                                  >
+                                    <div className="font-medium text-gray-900">{suggestion}</div>
+                                  </button>
+                                ))}
+                                {/* Show "Add to members" link if name doesn't match suggestions */}
+                                {isNameNotInSuggestions(tithe.name, index) && (
+                                  <div className="px-3 py-2 border-t border-gray-200 bg-blue-50">
+                                    <button
+                                      type="button"
+                                      className="text-blue-600 hover:text-blue-800 text-sm font-medium underline"
+                                      onClick={() => handleOpenAddMemberModal(index)}
+                                    >
+                                      Add "{tithe.name}" to members
+                                    </button>
+                                  </div>
+                                )}
+                              </>
                             ) : (
-                              <div className="p-3 text-center text-gray-500">No matching names found</div>
+                              <div className="p-3 text-center text-gray-500">
+                                No matching names found
+                                {tithe.name.trim().length >= 2 && (
+                                  <div className="mt-2">
+                                    <button
+                                      type="button"
+                                      className="text-blue-600 hover:text-blue-800 text-sm font-medium underline"
+                                      onClick={() => handleOpenAddMemberModal(index)}
+                                    >
+                                      Add "{tithe.name}" to members
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
                         )}
@@ -678,7 +743,20 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
               )}
             </Button>
           </div>
-                 </ModalFooter>
-       </Modal>
-     );
-   }
+        </ModalFooter>
+      </Modal>
+
+      {/* Add Member Modal */}
+      <AddMemberModal
+        isOpen={isAddMemberModalOpen}
+        onClose={() => {
+          setIsAddMemberModalOpen(false);
+          setCurrentTitheIndex(null);
+          setPrefilledMemberName('');
+        }}
+        onSave={handleMemberAdded}
+        prefilledName={prefilledMemberName}
+      />
+    </>
+  );
+}
