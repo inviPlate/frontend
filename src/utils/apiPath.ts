@@ -18,7 +18,7 @@ export const API_PATHS = {
   TRANSACTION: (id: string) => `${API_BASE_URL}/transactions/${id}`,
   
   // Receipts
-  RECEIPTS: `${API_BASE_URL}/receipts`,
+  RECEIPTS: `${API_BASE_URL}/get-receipts`,
   RECEIPT: (id: string) => `${API_BASE_URL}/receipts/${id}`,
   
   // Emails
@@ -34,7 +34,7 @@ export const API_PATHS = {
   NOTIFICATION_READ: (notificationId: string) => `${API_BASE_URL}/notifications/${notificationId}/read`,
   
   // Offertory
-  CREATE_OFFERTORY: `${API_BASE_URL}/`,
+  CREATE_OFFERTORY: `${API_BASE_URL}/add-offertory`,
   GET_OFFERTORY: `${API_BASE_URL}/get-offertory`,
   GET_TITHE_NAMES: `${API_BASE_URL}/get-tithe`,
   

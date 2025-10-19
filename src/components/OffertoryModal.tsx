@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Label } from 'flowbite-react';
 import useAxios from '../context/useAxios';
-import useAxiosDev from '../context/useAxiosDEV';
 import { API_PATHS } from '../utils/apiPath';
 import { HeadAutocomplete } from './HeadAutocomplete';
 import { AddMemberModal } from './AddMemberModal';
@@ -57,7 +56,6 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
   const [currentTitheIndex, setCurrentTitheIndex] = useState<number | null>(null);
   const [prefilledMemberName, setPrefilledMemberName] = useState<string>('');
   const axiosInstance = useAxios();
-  const axiosInstanceDev = useAxiosDev();
   // Helper function to format date to DD/MM/YYYY
   const formatDateToDDMMYYYY = (dateString: string): string => {
     const date = new Date(dateString);
@@ -227,7 +225,7 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
       };
 
       // Make API call
-      const response = await axiosInstanceDev.post(API_PATHS.CREATE_OFFERTORY, apiData);
+      const response = await axiosInstance.post(API_PATHS.CREATE_OFFERTORY, apiData);
       
       console.log('Offertory saved successfully:', response.data);
       

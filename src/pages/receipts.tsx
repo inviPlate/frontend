@@ -1,5 +1,7 @@
 import { Button, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import useAxios from '../context/useAxios';
+import { API_PATHS } from '../utils/apiPath';
 
 interface ReceiptData {
   id: number;
@@ -7,19 +9,40 @@ interface ReceiptData {
   amount: number;
   status: 'sent' | 'pending' | 'completed';
   date: string;
+  pdf_url: string;
 }
 
 export default function Receipts() {
   const [activeTab, setActiveTab] = useState('all');
+  const [receiptsData, setReceiptsData] = useState<ReceiptData[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>('');
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptData | null>(null);
+  
+  const axios = useAxios();
 
-  // Mock data - replace with actual API data
-  const receiptsData: ReceiptData[] = [
-    { id: 1, name: 'John Doe', amount: 150.00, status: 'sent', date: '2025-01-15' },
-    { id: 2, name: 'Jane Smith', amount: 75.50, status: 'pending', date: '2025-01-14' },
-    { id: 3, name: 'Mike Johnson', amount: 200.00, status: 'completed', date: '2025-01-13' },
-    { id: 4, name: 'Sarah Wilson', amount: 125.25, status: 'sent', date: '2025-01-12' },
-    { id: 5, name: 'David Brown', amount: 300.00, status: 'pending', date: '2025-01-11' },
-  ];
+  // Fetch receipts from API
+  useEffect(() => {
+    const fetchReceipts = async () => {
+      setIsLoading(true);
+      setError('');
+      
+      try {
+        const response = await axios.get(API_PATHS.RECEIPTS);
+        setReceiptsData(response.data.data || []);
+      } catch (error: any) {
+        console.error('Error fetching receipts:', error);
+        setError(error.response?.data?.message || error.message || 'Failed to fetch receipts');
+        // Fallback to empty array on error
+        setReceiptsData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReceipts();
+  }, [axios]);
 
   const getFilteredData = () => {
     if (activeTab === 'all') return receiptsData;
@@ -41,8 +64,18 @@ export default function Receipts() {
   };
 
   const handleView = (id: number) => {
-    console.log('View receipt:', id);
-    // Add view logic here
+    const receipt = receiptsData.find(r => r.id === id);
+    if (receipt && receipt.pdf_url) {
+      setSelectedReceipt(receipt);
+      setIsPdfModalOpen(true);
+    } else {
+      console.error('Receipt not found or no PDF URL available');
+    }
+  };
+
+  const closePdfModal = () => {
+    setIsPdfModalOpen(false);
+    setSelectedReceipt(null);
   };
 
   const handleSend = (id: number) => {
@@ -96,16 +129,95 @@ export default function Receipts() {
 
           {/* Tab Content */}
           <div className="p-4">
-            <ReceiptsTable 
-              data={getFilteredData()} 
-              onView={handleView} 
-              onSend={handleSend} 
-              formatCurrency={formatCurrency}
-              getStatusBadge={getStatusBadge}
-            />
+            {isLoading ? (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <p className="mt-2 text-sm text-gray-500">Loading receipts...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-8">
+                <svg className="mx-auto h-12 w-12 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">Error loading receipts</h3>
+                <p className="mt-1 text-sm text-gray-500">{error}</p>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Try Again
+                </button>
+              </div>
+            ) : (
+              <ReceiptsTable 
+                data={getFilteredData()} 
+                onView={handleView} 
+                onSend={handleSend} 
+                formatCurrency={formatCurrency}
+                getStatusBadge={getStatusBadge}
+              />
+            )}
           </div>
         </div>
       </div>
+
+      {/* PDF Viewer Modal */}
+      {isPdfModalOpen && selectedReceipt && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[95vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Receipt: {selectedReceipt.name}
+              </h3>
+              <button
+                onClick={closePdfModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body - PDF Viewer */}
+            <div className="flex-1 p-2 overflow-hidden">
+              <div className="w-full h-full border border-gray-300 rounded-lg overflow-hidden min-h-[80vh]">
+                <iframe
+                  src={selectedReceipt.pdf_url}
+                  className="w-full h-full min-h-[75vh]"
+                  title={`Receipt for ${selectedReceipt.name}`}
+                />
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between p-4 border-t border-gray-200 bg-gray-50">
+              <div className="text-sm text-gray-600">
+                Amount: {formatCurrency(selectedReceipt.amount)} | 
+                Date: {new Date(selectedReceipt.date).toLocaleDateString()} | 
+                Status: <span className={getStatusBadge(selectedReceipt.status)}>
+                  {selectedReceipt.status.charAt(0).toUpperCase() + selectedReceipt.status.slice(1)}
+                </span>
+              </div>
+              <div className="flex space-x-2">
+                <Button
+                  color="gray"
+                  onClick={closePdfModal}
+                >
+                  Close
+                </Button>
+                <Button
+                  color="blue"
+                  onClick={() => window.open(selectedReceipt.pdf_url, '_blank')}
+                >
+                  Open in New Tab
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
