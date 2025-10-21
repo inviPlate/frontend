@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import useAxios from "../context/useAxios";
 import { API_PATHS } from "../utils/apiPath";
 import { HeadAutocomplete } from "./HeadAutocomplete";
+import { MemberNameInput } from "./MemberNameInput";
+import { AddMemberModal } from "./AddMemberModal";
 
 interface AddTransactionModalProps {
   isOpen: boolean;
@@ -16,9 +18,9 @@ interface TransactionData {
   description: string;
   amount: number;
   date: string;
-  category: string;
   type: 'income' | 'expense';
   year_id: number;
+  member_id?: number;
 }
 
 interface HeadSuggestion {
@@ -34,13 +36,19 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
     description: '',
     amount: 0,
     date: new Date().toISOString().split('T')[0], // Today's date as default
-    category: '',
     type: 'income',
     year_id: yearId
   });
 
   const [isSaving, setIsSaving] = useState(false);
   const [selectedHead, setSelectedHead] = useState<HeadSuggestion | null>(null);
+  const [headQuery, setHeadQuery] = useState<string>('');
+  const [memberName, setMemberName] = useState<string>('');
+  const [nameSuggestions, setNameSuggestions] = useState<Array<{ id: number; name: string }>>([]);
+  const [isLoadingNames, setIsLoadingNames] = useState<boolean>(false);
+  const [showNameSuggestions, setShowNameSuggestions] = useState<boolean>(false);
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState<boolean>(false);
+  const [prefilledMemberName, setPrefilledMemberName] = useState<string>('');
   const axiosInstance = useAxios();
 
   // Clear selected head when modal closes
@@ -70,13 +78,78 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
     setFormData(prev => ({
       ...prev,
       head_id: head.id,
-      type: head.type,
-      category: head.particulars
+      type: head.type
     }));
+    setHeadQuery(head.particulars);
+  };
+
+  // Debounced search for member names
+  const debouncedSearch = (() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+    return (searchTerm: string) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(async () => {
+        if (searchTerm.trim().length < 2) {
+          setNameSuggestions([]);
+          setShowNameSuggestions(false);
+          return;
+        }
+        setIsLoadingNames(true);
+        try {
+          const response = await axiosInstance.get(`${API_PATHS.MEMBERS}?search=${encodeURIComponent(searchTerm)}`);
+          const entries = response.data?.data || [];
+          const suggestions = entries.map((e: any) => ({ id: e.id ?? e.member_id ?? e._id ?? 0, name: e.name }));
+          setNameSuggestions(suggestions);
+          setShowNameSuggestions(true);
+        } catch (e) {
+          setNameSuggestions([]);
+          setShowNameSuggestions(false);
+        } finally {
+          setIsLoadingNames(false);
+        }
+      }, 300);
+    };
+  })();
+
+  const handleMemberNameChange = (value: string) => {
+    setMemberName(value);
+    debouncedSearch(value);
+  };
+
+  const handleSelectName = (suggestion: string) => {
+    setMemberName(suggestion);
+    const match = nameSuggestions.find(s => s.name === suggestion);
+    setFormData(prev => ({ ...prev, member_id: match?.id }));
+    setShowNameSuggestions(false);
+  };
+
+  const openAddMemberModal = () => {
+    setPrefilledMemberName(memberName);
+    setIsAddMemberModalOpen(true);
+  };
+
+  const handleMemberAdded = async (memberData: { name: string; phone_number: string; email: string }) => {
+    setIsAddMemberModalOpen(false);
+    setMemberName(memberData.name);
+    // Refresh suggestions and set member_id
+    await (async () => {
+      try {
+        const response = await axiosInstance.get(`${API_PATHS.MEMBERS}?search=${encodeURIComponent(memberData.name)}`);
+        const entries = response.data?.data || [];
+        const suggestions = entries.map((e: any) => ({ id: e.id ?? e.member_id ?? e._id ?? 0, name: e.name }));
+        setNameSuggestions(suggestions);
+        const match = suggestions.find((s: { id: number; name: string }) => s.name === memberData.name);
+        if (match) {
+          setFormData(prev => ({ ...prev, member_id: match.id }));
+        }
+      } catch (e) {
+        // swallow
+      }
+    })();
   };
 
   const handleSave = async () => {
-    if (!formData.head_id || !formData.description || !formData.category || !formData.amount || !formData.date) {
+    if (!formData.head_id || !formData.description || !formData.amount || !formData.date) {
       alert('Please fill in all required fields');
       return;
     }
@@ -87,11 +160,11 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
       const transactionData = {
         head_id: formData.head_id,
         description: formData.description,
-        category: formData.category,
         amount: Number(formData.amount), // Ensure amount is sent as number
         date: formData.date,
         type: formData.type,
-        year_id: formData.year_id
+        year_id: formData.year_id,
+        member_id: formData.member_id
       };
 
       // Call the API to create the transaction
@@ -105,11 +178,15 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
           description: '',
           amount: 0,
           date: new Date().toISOString().split('T')[0],
-          category: '',
           type: 'income',
           year_id: yearId
         });
         setSelectedHead(null);
+        setHeadQuery('');
+        setMemberName('');
+        setNameSuggestions([]);
+        setShowNameSuggestions(false);
+        setFormData(prev => ({ ...prev, member_id: undefined }));
         // Close the modal
         onClose();
         // Call onSave callback to notify parent component (optional)
@@ -128,14 +205,14 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
   return (
     <Modal show={isOpen} onClose={onClose} size="md" className="bg-gray-50">
       <ModalHeader className="bg-white border-b border-gray-200 text-gray-800">
-        <h3 className="text-lg font-semibold text-gray-900">Add New Transaction</h3>
+        <div className="text-lg font-semibold text-gray-900">Add New Transaction</div>
       </ModalHeader>
       <ModalBody className="bg-white">
         <div className="space-y-4 p-2">
           {/* Head Selection */}
           <HeadAutocomplete
-            value={formData.category}
-            onChange={(value) => handleInputChange('category', value)}
+            value={headQuery}
+            onChange={(value) => setHeadQuery(value)}
             onHeadSelect={handleHeadSelect}
             placeholder="Start typing to search existing heads..."
             label="Head *"
@@ -158,6 +235,28 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
               <option value="income">Income</option>
               <option value="expense">Expense</option>
             </select>
+          </div>
+
+          {/* Member Name (optional) */}
+          <div>
+            <MemberNameInput
+              label="Member Name"
+              value={memberName}
+              onChange={handleMemberNameChange}
+              onClear={() => setMemberName('')}
+              onBlur={() => setTimeout(() => setShowNameSuggestions(false), 150)}
+              onFocus={() => {
+                if (memberName.trim().length >= 2 && nameSuggestions.length > 0) {
+                  setShowNameSuggestions(true);
+                }
+              }}
+              suggestions={nameSuggestions.map(s => s.name)}
+              isLoading={isLoadingNames}
+              onSelectSuggestion={handleSelectName}
+              showSuggestions={showNameSuggestions}
+              showAddNew={memberName.trim().length >= 2 && !nameSuggestions.some((s: { id: number; name: string }) => s.name.toLowerCase() === memberName.trim().toLowerCase())}
+              onAddNew={openAddMemberModal}
+            />
           </div>
 
           {/* Description */}
@@ -187,32 +286,7 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
             </div>
           </div>
 
-          {/* Category */}
-          <div>
-            <label htmlFor="category_input" className="block mb-2 text-sm font-medium text-black">
-              Category *
-            </label>
-            <div className="relative">
-              <input
-                id="category_input"
-                type="text"
-                placeholder="Enter category (e.g., offertory, tithe, sunday_school)"
-                required
-                value={formData.category}
-                onChange={(e) => handleInputChange('category', e.target.value)}
-                className="w-full px-3 py-2 bg-blue-50 border border-blue-200 text-gray-900 placeholder-gray-500 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none"
-              />
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                onClick={() => handleInputChange('category', '')}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
+          {/* Category removed: comes from selected head */}
 
           {/* Amount */}
           <div>
@@ -278,6 +352,12 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
           {isSaving ? 'Saving...' : 'Save Transaction'}
         </Button>
       </ModalFooter>
+      <AddMemberModal
+        isOpen={isAddMemberModalOpen}
+        onClose={() => setIsAddMemberModalOpen(false)}
+        onSave={handleMemberAdded}
+        prefilledName={prefilledMemberName}
+      />
     </Modal>
   );
 }
