@@ -1,6 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, Button, TextInput } from "flowbite-react";
 import { useState, useEffect, useCallback } from "react";
 import { AddBudgetHeadModal } from "../components/addBudgetModal";
+import { AddYearModal } from "../components/AddYearModal";
 import YearSelector from "../components/YearSelector";
 import useAxios from "../context/useAxios";
 import { API_PATHS } from "../utils/apiPath";
@@ -44,9 +45,11 @@ interface BudgetData {
 export default function Budget() {
   const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [isAddYearModalOpen, setIsAddYearModalOpen] = useState(false);
+  const [editingIncomeItem, setEditingIncomeItem] = useState<BudgetData | null>(null);
+  const [editingExpenseItem, setEditingExpenseItem] = useState<BudgetData | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>('2025-2026');
   const [fiscalYears, setFiscalYears] = useState<Array<{ id: number; year: string; is_active: boolean; is_deleted: boolean }>>([]);
-  const [isLoadingYears, setIsLoadingYears] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   // Budget data state
@@ -54,10 +57,6 @@ export default function Budget() {
   const [expenseData, setExpenseData] = useState<BudgetData[]>([]);
   const [isLoadingIncome, setIsLoadingIncome] = useState(false);
   const [isLoadingExpense, setIsLoadingExpense] = useState(false);
-
-  // Edit state
-  const [editingIncome, setEditingIncome] = useState<BudgetData | null>(null);
-  const [editingExpense, setEditingExpense] = useState<BudgetData | null>(null);
 
   // Pagination state
   const [incomePage, setIncomePage] = useState(1);
@@ -99,13 +98,7 @@ export default function Budget() {
 
   // Initial data fetch after component mounts and year is selected
   useEffect(() => {
-    console.log('Initial data fetch useEffect triggered:', {
-      fiscalYearsLength: fiscalYears.length,
-      currentYearId: getCurrentYearId(),
-      selectedYear
-    });
     if (fiscalYears.length > 0 && getCurrentYearId()) {
-      console.log('Calling fetchAllBudgetData from initial useEffect');
       fetchAllBudgetData();
     }
   }, [fiscalYears, selectedYear]); // Run when either fiscalYears or selectedYear changes
@@ -149,11 +142,11 @@ export default function Budget() {
     setIsLoading(true);
     try {
       let url = API_PATHS.GET_BUDGET(type, page, pageSize);
+      url += `&year_id=${yearId}`;
       if (searchTerm.trim()) {
         url += `&particular=${encodeURIComponent(searchTerm.trim())}`;
       }
       const response = await axiosInstance.get(url);
-      console.log('API Response:', response.data);
 
       // Safely extract data and pagination with fallbacks
       const responseData = response.data?.data || [];
@@ -161,13 +154,24 @@ export default function Budget() {
 
       // Ensure data is an array and contains valid objects
       if (Array.isArray(responseData)) {
-        setData(responseData);
+        // Additional validation: filter out any items that don't belong to the selected year
+        const filteredData = responseData.filter(item => {
+          if (!item || typeof item !== 'object') {
+            return false;
+          }
+          // Ensure the item belongs to the selected year
+          if (item.year_id && item.year_id !== yearId) {
+            return false;
+          }
+          return true;
+        });
+
+        setData(filteredData);
         setTotal(pagination.total || 0);
         setTotalPages(pagination.total_pages || 0);
         setHasNext(pagination.has_next || false);
         setHasPrev(pagination.has_prev || false);
       } else {
-        console.error('Invalid data format received:', responseData);
         setData([]);
         setTotal(0);
         setTotalPages(0);
@@ -196,6 +200,7 @@ export default function Budget() {
     const yearId = getCurrentYearId();
     if (yearId) {
       setErrorMessage('');
+      setEditingIncomeItem(null);
       setIsIncomeModalOpen(true);
     } else {
       console.error('No year selected');
@@ -208,12 +213,33 @@ export default function Budget() {
     const yearId = getCurrentYearId();
     if (yearId) {
       setErrorMessage('');
+      setEditingExpenseItem(null);
       setIsExpenseModalOpen(true);
     } else {
       console.error('No year selected');
       setErrorMessage('Please select a fiscal year before adding budget items.');
       setIsExpenseModalOpen(false);
     }
+  };
+
+  const handleEditIncome = (item: BudgetData) => {
+    setEditingIncomeItem(item);
+    setIsIncomeModalOpen(true);
+  };
+
+  const handleEditExpense = (item: BudgetData) => {
+    setEditingExpenseItem(item);
+    setIsExpenseModalOpen(true);
+  };
+
+  const handleCloseIncomeModal = () => {
+    setEditingIncomeItem(null);
+    setIsIncomeModalOpen(false);
+  };
+
+  const handleCloseExpenseModal = () => {
+    setEditingExpenseItem(null);
+    setIsExpenseModalOpen(false);
   };
 
 
@@ -233,36 +259,27 @@ export default function Budget() {
   };
 
   const handleSaveIncomeData = (data: BudgetHeadData) => {
-    console.log('Income data saved:', data);
     // Refresh income data after saving
-                    fetchBudgetData('income', incomePage, debouncedIncomeSearchTerm);
+    fetchBudgetData('income', incomePage, debouncedIncomeSearchTerm);
   };
 
   const handleSaveExpenseData = (data: BudgetHeadData) => {
-    console.log('Expense data saved:', data);
     // Refresh expense data after saving
-                    fetchBudgetData('expense', expensePage, debouncedExpenseSearchTerm);
+    fetchBudgetData('expense', expensePage, debouncedExpenseSearchTerm);
   };
 
-  // Edit handlers
-  const handleEditIncome = (item: BudgetData) => {
-    setEditingIncome(item);
-    setIsIncomeModalOpen(true);
+  const handleOpenAddYearModal = () => {
+    setIsAddYearModalOpen(true);
   };
 
-  const handleEditExpense = (item: BudgetData) => {
-    setEditingExpense(item);
-    setIsExpenseModalOpen(true);
+  const handleCloseAddYearModal = () => {
+    setIsAddYearModalOpen(false);
   };
 
-  const handleCloseIncomeModal = () => {
-    setIsIncomeModalOpen(false);
-    setEditingIncome(null);
-  };
-
-  const handleCloseExpenseModal = () => {
-    setIsExpenseModalOpen(false);
-    setEditingExpense(null);
+  const handleSaveYearData = (data: { year: string; clone_from_id: number }) => {
+    // Refresh fiscal years list after saving
+    // The YearSelector will automatically refresh when fiscalYears state updates
+    setIsAddYearModalOpen(false);
   };
 
   return (
@@ -272,15 +289,27 @@ export default function Budget() {
         <p className="text-gray-600">Manage and organize your year budget and income sources</p>
 
         {/* Year Selector */}
-        <YearSelector
-          selectedYear={selectedYear}
-          onYearChange={handleYearChange}
-          onYearsLoaded={useCallback((years: Array<{ id: number; year: string; is_active: boolean; is_deleted: boolean }>) => {
-            setFiscalYears(years);
-            // Don't automatically set year - let user select or keep current selection
-            console.log('Fiscal years loaded:', years);
-          }, [])}
-        />
+        <div className="flex items-baseline space-x-4 mt-4">
+          <YearSelector
+            selectedYear={selectedYear}
+            onYearChange={handleYearChange}
+            onYearsLoaded={useCallback((years: Array<{ id: number; year: string; is_active: boolean; is_deleted: boolean }>) => {
+              setFiscalYears(years);
+            }, [])}
+            className="w-48"
+          />
+          <Button
+            size="sm"
+            color="blue"
+            className="px-4 py-2 h-8"
+            onClick={handleOpenAddYearModal}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Add Effective Year
+          </Button>
+        </div>
         {errorMessage && (
           <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded">
             {errorMessage}
@@ -376,15 +405,16 @@ export default function Budget() {
                         </span>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Button
-                          size="xs"
+                        <Button 
+                          size="xs" 
                           color="blue"
-                          className="px-2 py-1"
                           onClick={() => handleEditIncome(item)}
+                          className="px-3 py-1"
                         >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
+                          Edit
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -546,15 +576,16 @@ export default function Budget() {
                         </span>
                       </TableCell>
                       <TableCell className="text-center">
-                        <Button
-                          size="xs"
+                        <Button 
+                          size="xs" 
                           color="blue"
-                          className="px-2 py-1"
                           onClick={() => handleEditExpense(item)}
+                          className="px-3 py-1"
                         >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
+                          Edit
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -637,7 +668,7 @@ export default function Budget() {
           type="income"
           yearId={getCurrentYearId()!}
           yearText={selectedYear}
-          editData={editingIncome || undefined}
+          editData={editingIncomeItem}
         />
       )}
 
@@ -649,9 +680,16 @@ export default function Budget() {
           type="expense"
           yearId={getCurrentYearId()!}
           yearText={selectedYear}
-          editData={editingExpense || undefined}
+          editData={editingExpenseItem}
         />
       )}
+
+      <AddYearModal
+        isOpen={isAddYearModalOpen}
+        onClose={handleCloseAddYearModal}
+        onSave={handleSaveYearData}
+        existingYears={fiscalYears}
+      />
     </div>
   );
 }

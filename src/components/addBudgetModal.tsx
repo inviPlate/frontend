@@ -11,16 +11,7 @@ interface AddBudgetHeadModalProps {
   type: 'income' | 'expense';
   yearId: number;
   yearText: string;
-  editData?: BudgetData;
-}
-
-interface BudgetHeadData {
-  head: string;
-  particulars: string;
-  budgetedAmount: string;
-  incomeExpenseType: 'Income' | 'Expense';
-  yearId: number;
-  headId?: number; // Add headId to store the selected head's ID
+  editData?: BudgetData | null;
 }
 
 interface BudgetData {
@@ -32,6 +23,15 @@ interface BudgetData {
   status: string;
   head_id: number;
   year_id: number;
+}
+
+interface BudgetHeadData {
+  head: string;
+  particulars: string;
+  budgetedAmount: string;
+  incomeExpenseType: 'Income' | 'Expense';
+  yearId: number;
+  headId?: number; // Add headId to store the selected head's ID
 }
 
 interface AutocompleteSuggestion {
@@ -63,7 +63,7 @@ export function AddBudgetHeadModal({ isOpen, onClose, onSave, type, yearId, year
     }));
   }, [yearId, type]);
 
-  // Populate form when editData is provided
+  // Populate form with edit data when provided
   useEffect(() => {
     if (editData && isOpen) {
       setFormData({
@@ -115,23 +115,24 @@ export function AddBudgetHeadModal({ isOpen, onClose, onSave, type, yearId, year
     setIsSaving(true);
     try {
       let response;
+      
       if (editData?.id) {
-        // Update existing budget
+        // Update existing budget item
         response = await axiosInstance.put(`${API_PATHS.UPDATE_BUDGET}?id=${editData.id}`, {
           year_id: formData.yearId,
           head_id: formData.headId,
           amount: parseFloat(formData.budgetedAmount)
         });
-        console.log('Budget head updated successfully:', response.data);
       } else {
-        // Create new budget
+        // Create new budget item
         response = await axiosInstance.post(API_PATHS.CREATE_BUDGET, {
           year_id: formData.yearId,
           head_id: formData.headId,
           amount: parseFloat(formData.budgetedAmount)
         });
-        console.log('Budget head created successfully:', response.data);
       }
+      
+      console.log('Budget head saved successfully:', response.data);
       
       // Call the onSave callback with the response data
       onSave(formData);
@@ -171,9 +172,7 @@ export function AddBudgetHeadModal({ isOpen, onClose, onSave, type, yearId, year
     <Modal className="bg-white [&>*]:!bg-white [&_*]:!text-gray-900" show={isOpen} onClose={handleClose} size="md">
       <ModalHeader className="bg-white text-gray-900 border-gray-200">
         <div>
-          <div className="text-lg font-semibold">
-            {editData ? 'Edit Budget Head' : 'Add Budget Head'}
-          </div>
+          <div className="text-lg font-semibold">{editData ? 'Edit Budget Head' : 'Add Budget Head'}</div>
           <div className="text-sm text-gray-600 capitalize">
             {type} • Year: {yearText}
           </div>
@@ -270,16 +269,13 @@ export function AddBudgetHeadModal({ isOpen, onClose, onSave, type, yearId, year
           disabled={isSaving}
         >
           {isSaving ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              {editData ? 'Updating...' : 'Saving...'}
-            </>
+            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
           ) : (
             <>
-              {editData ? 'Update' : 'Save'}
+              {editData ? 'Update Budget' : 'Save'}
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
               </svg>
