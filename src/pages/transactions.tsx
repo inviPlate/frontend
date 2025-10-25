@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Button, Badge } from 'flowbite-react';
+import { Button } from 'flowbite-react';
 import { useOffertoryModal } from '../context/OffertoryModalContext';
 import YearSelector from '../components/YearSelector';
 import useAxios from '../context/useAxios';
@@ -97,6 +97,7 @@ export default function Transactions() {
   
   // Transaction modal state
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<ExpenseData | null>(null);
   
   // Offertory pagination state
   const [offertoryPage, setOffertoryPage] = useState(1);
@@ -124,6 +125,18 @@ export default function Transactions() {
     } catch (error) {
       console.error('Error refreshing transaction data:', error);
     }
+  };
+
+  // Handle editing transaction
+  const handleEditTransaction = (transaction: ExpenseData) => {
+    setEditingTransaction(transaction);
+    setIsTransactionModalOpen(true);
+  };
+
+  // Handle closing modal
+  const handleCloseModal = () => {
+    setIsTransactionModalOpen(false);
+    setEditingTransaction(null);
   };
 
   // Fetch offertory data from API
@@ -199,7 +212,7 @@ export default function Transactions() {
   const formatCurrency = (value: number | null) => {
     if (value === null) return '-';
     if (typeof value === 'number') {
-      return value >= 0 ? `$${value.toLocaleString()}` : `-$${Math.abs(value).toLocaleString()}`;
+      return value >= 0 ? `₹${value.toLocaleString()}` : `-₹${Math.abs(value).toLocaleString()}`;
     }
     return '-';
   };
@@ -390,8 +403,8 @@ export default function Transactions() {
                   <th className="px-6 py-3">DATE</th>
                   <th className="px-6 py-3">HEAD</th>
                   <th className="px-6 py-3">DESCRIPTION</th>
-                  <th className="px-6 py-3">CATEGORY</th>
                   <th className="px-6 py-3">AMOUNT</th>
+                  <th className="px-6 py-3">ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
@@ -427,19 +440,23 @@ export default function Transactions() {
                         {row.head.particulars}
                       </td>
                       <td className="px-6 py-4 text-gray-900">{row.description}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          row.type === 'income' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {row.category}
-                        </span>
-                      </td>
                       <td className={`px-6 py-4 font-medium ${
                         row.type === 'income' ? 'text-green-600' : 'text-red-600'
                       }`}>
                         {formatCurrency(row.amount)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Button 
+                          size="xs" 
+                          color="blue"
+                          onClick={() => handleEditTransaction(row)}
+                          className="px-3 py-1"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Edit
+                        </Button>
                       </td>
                     </tr>
                   ))
@@ -517,9 +534,19 @@ export default function Transactions() {
       {/* Add Transaction Modal */}
       <AddTransactionModal
         isOpen={isTransactionModalOpen}
-        onClose={() => setIsTransactionModalOpen(false)}
+        onClose={handleCloseModal}
         onSave={handleSaveTransaction}
         yearId={getCurrentYearId() || 0}
+        editData={editingTransaction ? {
+          id: editingTransaction.id,
+          head_id: editingTransaction.head_id,
+          description: editingTransaction.description,
+          amount: editingTransaction.amount,
+          date: editingTransaction.date,
+          head_particulars: editingTransaction.head.particulars,
+          type: editingTransaction.type,
+          year_id: getCurrentYearId() || 0
+        } : undefined}
       />
     </div>
   );

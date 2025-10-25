@@ -11,6 +11,7 @@ interface AddTransactionModalProps {
   onClose: () => void;
   onSave: (data: TransactionData) => void;
   yearId: number;
+  editData?: TransactionData & { id?: number }; // Add optional edit data
 }
 
 interface TransactionData {
@@ -21,6 +22,7 @@ interface TransactionData {
   type: 'income' | 'expense';
   year_id: number;
   member_id?: number;
+  head_particulars?: string;
 }
 
 interface HeadSuggestion {
@@ -30,7 +32,7 @@ interface HeadSuggestion {
   type: 'income' | 'expense';
 }
 
-export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTransactionModalProps) {
+export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData }: AddTransactionModalProps) {
   const [formData, setFormData] = useState<TransactionData>({
     head_id: 0,
     description: '',
@@ -65,6 +67,56 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
       year_id: yearId
     }));
   }, [yearId]);
+
+  // Populate form data when editing
+  useEffect(() => {
+    if (editData && isOpen) {
+      // Format date for HTML date input (YYYY-MM-DD)
+      const formatDateForInput = (dateString: string) => {
+        try {
+          const date = new Date(dateString);
+          return date.toISOString().split('T')[0];
+        } catch (error) {
+          console.error('Error formatting date:', error);
+          return new Date().toISOString().split('T')[0];
+        }
+      };
+
+      setFormData({
+        head_id: editData.head_id,
+        description: editData.description,
+        amount: editData.amount,
+        date: formatDateForInput(editData.date),
+        type: editData.type,
+        year_id: editData.year_id,
+        member_id: editData.member_id
+      });
+      
+      // Set the selected head for display
+      if (editData.head_id) {
+        setHeadQuery(editData.head_particulars || '');
+        setSelectedHead({
+          id: editData.head_id,
+          head: '', // We'll need to fetch this or pass it in editData
+          particulars: editData.head_particulars || '', // We'll need to fetch this or pass it in editData
+          type: editData.type
+        });
+      }
+    } else if (!editData && isOpen) {
+      // Reset form for new transaction
+      setFormData({
+        head_id: 0,
+        description: '',
+        amount: 0,
+        date: new Date().toISOString().split('T')[0],
+        type: 'income',
+        year_id: yearId
+      });
+      setSelectedHead(null);
+      setHeadQuery('');
+      setMemberName('');
+    }
+  }, [editData, isOpen, yearId]);
 
   const handleInputChange = (field: keyof TransactionData, value: string | number) => {
     setFormData(prev => ({
@@ -167,11 +219,18 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
         member_id: formData.member_id
       };
 
-      // Call the API to create the transaction
-      const response = await axiosInstance.post(API_PATHS.ADD_TRANSACTIONS, transactionData);
+      let response;
+      
+      if (editData?.id) {
+        // Update existing transaction using PATCH with ID as query parameter
+        response = await axiosInstance.put(`${API_PATHS.UPDATE_TRANSACTION}?id=${editData.id}`, transactionData);
+      } else {
+        // Create new transaction using POST
+        response = await axiosInstance.post(API_PATHS.ADD_TRANSACTIONS, transactionData);
+      }
       
       if (response.data.success) {
-        console.log('Transaction saved successfully:', response.data);
+        console.log(editData?.id ? 'Transaction updated successfully:' : 'Transaction saved successfully:', response.data);
         // Reset form data
         setFormData({
           head_id: 0,
@@ -192,11 +251,11 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
         // Call onSave callback to notify parent component (optional)
         onSave(response.data.data);
       } else {
-        throw new Error(response.data.message || 'Failed to save transaction');
+        throw new Error(response.data.message || `Failed to ${editData?.id ? 'update' : 'save'} transaction`);
       }
     } catch (error) {
-      console.error('Error saving transaction:', error);
-      alert('Failed to save transaction. Please try again.');
+      console.error(`Error ${editData?.id ? 'updating' : 'saving'} transaction:`, error);
+      alert(`Failed to ${editData?.id ? 'update' : 'save'} transaction. Please try again.`);
     } finally {
       setIsSaving(false);
     }
@@ -205,7 +264,9 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
   return (
     <Modal show={isOpen} onClose={onClose} size="md" className="bg-gray-50">
       <ModalHeader className="bg-white border-b border-gray-200 text-gray-800">
-        <div className="text-lg font-semibold text-gray-900">Add New Transaction</div>
+        <div className="text-lg font-semibold text-gray-900">
+          {editData?.id ? 'Edit Transaction' : 'Add New Transaction'}
+        </div>
       </ModalHeader>
       <ModalBody className="bg-white">
         <div className="space-y-4 p-2">
@@ -349,7 +410,7 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId }: AddTran
           Cancel
         </Button>
         <Button onClick={handleSave} disabled={isSaving} className="bg-blue-600 hover:bg-blue-700 text-white">
-          {isSaving ? 'Saving...' : 'Save Transaction'}
+          {isSaving ? (editData?.id ? 'Updating...' : 'Saving...') : (editData?.id ? 'Update Transaction' : 'Save Transaction')}
         </Button>
       </ModalFooter>
       <AddMemberModal

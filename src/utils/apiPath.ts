@@ -15,11 +15,12 @@ export const API_PATHS = {
   // Transactions
   TRANSACTIONS: `${API_BASE_URL}/get-transactions`,
   ADD_TRANSACTIONS: `${API_BASE_URL}/add-transaction`,
-  TRANSACTION: (id: string) => `${API_BASE_URL}/transactions/${id}`,
+  UPDATE_TRANSACTION: `${API_BASE_URL}/add-transaction`,
   
   // Receipts
   RECEIPTS: `${API_BASE_URL}/get-receipts`,
   RECEIPT: (id: string) => `${API_BASE_URL}/receipts/${id}`,
+  REGENERATE_RECEIPT: 'https://gen-receipt-618088374050.asia-south1.run.app/genReceipt',
   
   // Emails
   EMAILS: `${API_BASE_URL}/emails`,
