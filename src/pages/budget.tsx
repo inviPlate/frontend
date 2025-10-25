@@ -55,6 +55,10 @@ export default function Budget() {
   const [isLoadingIncome, setIsLoadingIncome] = useState(false);
   const [isLoadingExpense, setIsLoadingExpense] = useState(false);
 
+  // Edit state
+  const [editingIncome, setEditingIncome] = useState<BudgetData | null>(null);
+  const [editingExpense, setEditingExpense] = useState<BudgetData | null>(null);
+
   // Pagination state
   const [incomePage, setIncomePage] = useState(1);
   const [expensePage, setExpensePage] = useState(1);
@@ -240,6 +244,27 @@ export default function Budget() {
                     fetchBudgetData('expense', expensePage, debouncedExpenseSearchTerm);
   };
 
+  // Edit handlers
+  const handleEditIncome = (item: BudgetData) => {
+    setEditingIncome(item);
+    setIsIncomeModalOpen(true);
+  };
+
+  const handleEditExpense = (item: BudgetData) => {
+    setEditingExpense(item);
+    setIsExpenseModalOpen(true);
+  };
+
+  const handleCloseIncomeModal = () => {
+    setIsIncomeModalOpen(false);
+    setEditingIncome(null);
+  };
+
+  const handleCloseExpenseModal = () => {
+    setIsExpenseModalOpen(false);
+    setEditingExpense(null);
+  };
+
   return (
     <div className="p-6 space-y-8">
       <div className="mb-6">
@@ -303,12 +328,13 @@ export default function Budget() {
                 <TableHeadCell className="bg-white text-center">BUDGETED</TableHeadCell>
                 <TableHeadCell className="bg-white text-center">ACTUALS</TableHeadCell>
                 <TableHeadCell className="bg-white text-center">STATUS</TableHeadCell>
+                <TableHeadCell className="bg-white text-center">ACTIONS</TableHeadCell>
               </TableRow>
             </TableHead>
             <TableBody className="divide-y">
               {isLoadingIncome ? (
                 <TableRow className="bg-white">
-                  <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                     <div className="flex items-center justify-center space-x-2">
                       <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -320,7 +346,7 @@ export default function Budget() {
                 </TableRow>
               ) : incomeData.length === 0 ? (
                 <TableRow className="bg-white hover:bg-gray-50">
-                  <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                     No income data available
                   </TableCell>
                 </TableRow>
@@ -348,6 +374,18 @@ export default function Budget() {
                         <span className={getStatusBadge(item.status || 'Unknown')}>
                           {item.status || 'Unknown'}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          size="xs"
+                          color="blue"
+                          className="px-2 py-1"
+                          onClick={() => handleEditIncome(item)}
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                          </svg>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -460,12 +498,13 @@ export default function Budget() {
                 <TableHeadCell className="bg-gray-50">BUDGETED</TableHeadCell>
                 <TableHeadCell className="bg-gray-50">ACTUALS</TableHeadCell>
                 <TableHeadCell className="bg-gray-50">STATUS</TableHeadCell>
+                <TableHeadCell className="bg-gray-50">ACTIONS</TableHeadCell>
               </TableRow>
             </TableHead>
             <TableBody className="divide-y">
               {isLoadingExpense ? (
                 <TableRow className="bg-white">
-                  <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                     <div className="flex items-center justify-center space-x-2">
                       <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -477,7 +516,7 @@ export default function Budget() {
                 </TableRow>
               ) : expenseData.length === 0 ? (
                 <TableRow className="bg-white hover:bg-gray-50">
-                  <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                  <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                     No expenses data available
                   </TableCell>
                 </TableRow>
@@ -505,6 +544,18 @@ export default function Budget() {
                         <span className={getStatusBadge(item.status || 'Unknown')}>
                           {item.status || 'Unknown'}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Button
+                          size="xs"
+                          color="blue"
+                          className="px-2 py-1"
+                          onClick={() => handleEditExpense(item)}
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                          </svg>
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -581,22 +632,24 @@ export default function Budget() {
       {getCurrentYearId() && (
         <AddBudgetHeadModal
           isOpen={isIncomeModalOpen}
-          onClose={() => setIsIncomeModalOpen(false)}
+          onClose={handleCloseIncomeModal}
           onSave={handleSaveIncomeData}
           type="income"
           yearId={getCurrentYearId()!}
           yearText={selectedYear}
+          editData={editingIncome || undefined}
         />
       )}
 
       {getCurrentYearId() && (
         <AddBudgetHeadModal
           isOpen={isExpenseModalOpen}
-          onClose={() => setIsExpenseModalOpen(false)}
+          onClose={handleCloseExpenseModal}
           onSave={handleSaveExpenseData}
           type="expense"
           yearId={getCurrentYearId()!}
           yearText={selectedYear}
+          editData={editingExpense || undefined}
         />
       )}
     </div>

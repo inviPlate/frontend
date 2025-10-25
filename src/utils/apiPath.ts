@@ -5,6 +5,7 @@ export const API_PATHS = {
   BUDGET_HEADS: `get-heads`,
   BUDGET_HEAD: (id: string) => `${API_BASE_URL}/budget-heads/${id}`,
   CREATE_BUDGET: `/add-budget`,
+  UPDATE_BUDGET: `/add-budget`,
   FISCAL_YEARS: `/get-years`,
   GET_BUDGET: (type: string, page: number = 1, limit: number = 20) => `get-budget?type=${type}&page=${page}&limit=${limit}`,
   
