@@ -5,6 +5,7 @@ import YearSelector from '../components/YearSelector';
 import useAxios from '../context/useAxios';
 import { API_PATHS } from '../utils/apiPath';
 import { AddTransactionModal } from '../components/AddTransactionModal';
+import { OffertoryModal } from '../components/OffertoryModal';
 
 interface OffertoryData {
   id: number;
@@ -99,6 +100,10 @@ export default function Transactions() {
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<ExpenseData | null>(null);
   
+  // Offertory modal state
+  const [isOffertoryModalOpen, setIsOffertoryModalOpen] = useState(false);
+  const [editingOffertory, setEditingOffertory] = useState<OffertoryData | null>(null);
+  
   // Offertory pagination state
   const [offertoryPage, setOffertoryPage] = useState(1);
   const [offertoryTotal, setOffertoryTotal] = useState(0);
@@ -137,6 +142,29 @@ export default function Transactions() {
   const handleCloseModal = () => {
     setIsTransactionModalOpen(false);
     setEditingTransaction(null);
+  };
+
+  // Handle editing offertory
+  const handleEditOffertory = (offertory: OffertoryData) => {
+    setEditingOffertory(offertory);
+    setIsOffertoryModalOpen(true);
+  };
+
+  // Handle closing offertory modal
+  const handleCloseOffertoryModal = () => {
+    setIsOffertoryModalOpen(false);
+    setEditingOffertory(null);
+  };
+
+  // Handle saving offertory (refresh data)
+  const handleSaveOffertory = async (offertoryData: any) => {
+    try {
+      // Refresh the offertory data after successful save
+      fetchOffertoryData(offertoryPage);
+      console.log('Offertory data refreshed');
+    } catch (error) {
+      console.error('Error refreshing offertory data:', error);
+    }
   };
 
   // Fetch offertory data from API
@@ -265,12 +293,13 @@ export default function Transactions() {
                   <th className="px-6 py-3">SECOND OFFERTORY</th>
                   <th className="px-6 py-3">SUNDAY SCHOOL</th>
                   <th className="px-6 py-3">TOTAL AMOUNT</th>
+                  <th className="px-6 py-3">ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoadingOffertory ? (
                   <tr className="bg-white">
-                    <td colSpan={5} className="text-center text-gray-500 py-8">
+                    <td colSpan={6} className="text-center text-gray-500 py-8">
                       <div className="flex items-center justify-center space-x-2">
                         <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -282,7 +311,7 @@ export default function Transactions() {
                   </tr>
                 ) : offertoryData.length === 0 ? (
                   <tr className="bg-white hover:bg-gray-50">
-                    <td colSpan={5} className="text-center text-gray-500 py-8">
+                    <td colSpan={6} className="text-center text-gray-500 py-8">
                       No offertory data available for the selected year
                     </td>
                   </tr>
@@ -307,6 +336,19 @@ export default function Transactions() {
                       </td>
                       <td className={`px-6 py-4 ${row.total_amount === null ? 'text-gray-400' : 'text-gray-900'}`}>
                         {formatCurrency(row.total_amount)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Button 
+                          size="xs" 
+                          color="blue"
+                          onClick={() => handleEditOffertory(row)}
+                          className="px-3 py-1"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Edit
+                        </Button>
                       </td>
                     </tr>
                   ))
@@ -546,6 +588,21 @@ export default function Transactions() {
           head_particulars: editingTransaction.head.particulars,
           type: editingTransaction.type,
           year_id: getCurrentYearId() || 0
+        } : undefined}
+      />
+
+      {/* Edit Offertory Modal */}
+      <OffertoryModal
+        isOpen={isOffertoryModalOpen}
+        onClose={handleCloseOffertoryModal}
+        onSave={handleSaveOffertory}
+        editData={editingOffertory ? {
+          id: editingOffertory.id,
+          first_offertory: editingOffertory.first_offertory,
+          second_offertory: editingOffertory.second_offertory,
+          sunday_school: editingOffertory.sunday_school,
+          date: editingOffertory.date,
+          year_id: editingOffertory.year_id
         } : undefined}
       />
     </div>

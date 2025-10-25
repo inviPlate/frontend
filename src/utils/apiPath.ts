@@ -36,6 +36,7 @@ export const API_PATHS = {
   
   // Offertory
   CREATE_OFFERTORY: `${API_BASE_URL}/add-offertory`,
+  UPDATE_OFFERTORY: `${API_BASE_URL}/add-offertory`,
   GET_OFFERTORY: `${API_BASE_URL}/get-offertory`,
   GET_TITHE_NAMES: `${API_BASE_URL}/get-tithe`,
   

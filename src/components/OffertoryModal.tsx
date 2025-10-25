@@ -33,9 +33,17 @@ interface OffertoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: OffertoryData) => void;
+  editData?: {
+    id: number;
+    first_offertory: number | null;
+    second_offertory: number | null;
+    sunday_school: number | null;
+    date: string;
+    year_id: number;
+  };
 }
 
-export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps) {
+export function OffertoryModal({ isOpen, onClose, onSave, editData }: OffertoryModalProps) {
   const [formData, setFormData] = useState<OffertoryData>({
     firstOffertory: '',
     secondOffertory: '',
@@ -57,7 +65,16 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
   const [currentTitheIndex, setCurrentTitheIndex] = useState<number | null>(null);
   const [prefilledMemberName, setPrefilledMemberName] = useState<string>('');
   const axiosInstance = useAxios();
-  // Helper function to format date to DD/MM/YYYY
+  // Helper function to format date to YYYY-MM-DD
+  const formatDateToYYYYMMDD = (dateString: string): string => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Helper function to format date to DD-MM-YYYY for API
   const formatDateToDDMMYYYY = (dateString: string): string => {
     const date = new Date(dateString);
     const day = date.getDate().toString().padStart(2, '0');
@@ -226,9 +243,16 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
       };
 
       // Make API call
-      const response = await axiosInstance.post(API_PATHS.CREATE_OFFERTORY, apiData);
+      let response;
+      if (editData?.id) {
+        // Update existing offertory
+        response = await axiosInstance.put(`${API_PATHS.UPDATE_OFFERTORY}?id=${editData.id}`, apiData);
+      } else {
+        // Create new offertory
+        response = await axiosInstance.post(API_PATHS.CREATE_OFFERTORY, apiData);
+      }
       
-      console.log('Offertory saved successfully:', response.data);
+      console.log(editData?.id ? 'Offertory updated successfully:' : 'Offertory saved successfully:', response.data);
       
       // Call the onSave callback with the response data
       onSave(formData);
@@ -275,7 +299,21 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
   // Reset form when modal opens and focus first input
   useEffect(() => {
     if (isOpen) {
-      resetForm();
+      if (editData) {
+        // Populate form with edit data
+        setFormData({
+          firstOffertory: editData.first_offertory?.toString() || '',
+          secondOffertory: editData.second_offertory?.toString() || '',
+          sundaySchool: editData.sunday_school?.toString() || '',
+          offertoryDate: formatDateToYYYYMMDD(editData.date),
+          others: '',
+          note: '',
+          OthersHeadID: undefined,
+          tithes: [{ name: '', amount: '', modeOfPayment: 'Cash', upiChequeNo: '' }]
+        });
+      } else {
+        resetForm();
+      }
       // Focus first input after a short delay to ensure DOM is ready
       setTimeout(() => {
         const firstInput = document.getElementById('firstOffertory');
@@ -284,7 +322,7 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
         }
       }, 100);
     }
-  }, [isOpen]);
+  }, [isOpen, editData]);
 
   const handleClose = () => {
     if (hasUnsavedChanges) {
@@ -302,7 +340,9 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
     <>
       <Modal show={isOpen} onClose={handleClose} size="4xl" className="[&>*]:!bg-gray-100 [&_*]:!text-gray-900">
       <ModalHeader className="bg-gray-100 border-gray-200">
-        <div className="text-2xl font-bold text-gray-900">Offertory Details</div>
+        <div className="text-2xl font-bold text-gray-900">
+          {editData ? 'Edit Offertory Details' : 'Offertory Details'}
+        </div>
       </ModalHeader>
       
             <ModalBody className="bg-gray-100">
@@ -483,165 +523,169 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
               type="income"
             />
 
-            {/* Tithes Section */}
-            <div className="border-t-2 border-blue-500 pt-4">
-              <h3 className="text-lg font-semibold text-gray-900 text-center mb-4">Tithes</h3>
-              
-              {formData.tithes.map((tithe, index) => (
-                <div key={index} className="bg-white p-4 rounded-lg mb-4 border border-gray-200 relative">
-                  {/* Serial Counter */}
-                  <div className="absolute top-2 left-2 bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded-full">
-                    #{index + 1}
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 mb-4 mt-6">
-                    <div>
-                      <MemberNameInput
-                        label="Name"
-                        value={tithe.name}
-                        onChange={(val) => handleTitheChange(index, 'name', val)}
-                        onClear={() => clearTitheField(index, 'name')}
-                        onFocus={() => {
-                          if (tithe.name.trim().length >= 2 && titheNameSuggestions.length > 0) {
-                            setShowTitheSuggestions(index);
-                          }
-                        }}
-                        onBlur={handleInputBlur}
-                        suggestions={titheNameSuggestions}
-                        isLoading={isLoadingTitheNames}
-                        onSelectSuggestion={(s) => handleSuggestionSelect(index, s)}
-                        showSuggestions={showTitheSuggestions === index}
-                        showAddNew={isNameNotInSuggestions(tithe.name, index)}
-                        onAddNew={() => handleOpenAddMemberModal(index)}
-                      />
+            {/* Tithes Section - Only show when not editing */}
+            {!editData && (
+              <div className="border-t-2 border-blue-500 pt-4">
+                <h3 className="text-lg font-semibold text-gray-900 text-center mb-4">Tithes</h3>
+                
+                {formData.tithes.map((tithe, index) => (
+                  <div key={index} className="bg-white p-4 rounded-lg mb-4 border border-gray-200 relative">
+                    {/* Serial Counter */}
+                    <div className="absolute top-2 left-2 bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded-full">
+                      #{index + 1}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 mb-4 mt-6">
+                      <div>
+                        <MemberNameInput
+                          label="Name"
+                          value={tithe.name}
+                          onChange={(val) => handleTitheChange(index, 'name', val)}
+                          onClear={() => clearTitheField(index, 'name')}
+                          onFocus={() => {
+                            if (tithe.name.trim().length >= 2 && titheNameSuggestions.length > 0) {
+                              setShowTitheSuggestions(index);
+                            }
+                          }}
+                          onBlur={handleInputBlur}
+                          suggestions={titheNameSuggestions}
+                          isLoading={isLoadingTitheNames}
+                          onSelectSuggestion={(s) => handleSuggestionSelect(index, s)}
+                          showSuggestions={showTitheSuggestions === index}
+                          showAddNew={isNameNotInSuggestions(tithe.name, index)}
+                          onAddNew={() => handleOpenAddMemberModal(index)}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Ammount
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="Input text"
+                            value={tithe.amount}
+                            onChange={(e) => handleTitheChange(index, 'amount', e.target.value)}
+                            className="w-full px-3 py-2 bg-white border border-gray-300 text-gray-900 placeholder-gray-500 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none"
+                          />
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            onClick={() => clearTitheField(index, 'amount')}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Mode of payment
+                      </label>
+                      <div className="flex items-center space-x-4">
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            name={`mode-${index}`}
+                            value="Cash"
+                            checked={tithe.modeOfPayment === 'Cash'}
+                            onChange={(e) => handleTitheChange(index, 'modeOfPayment', e.target.value as 'Cash' | 'Cheque' | 'UPI')}
+                            className="mr-2 text-blue-600 focus:ring-blue-500"
+                          />
+                          Cash
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            name={`mode-${index}`}
+                            value="Cheque"
+                            checked={tithe.modeOfPayment === 'Cheque'}
+                            onChange={(e) => handleTitheChange(index, 'modeOfPayment', e.target.value as 'Cash' | 'Cheque' | 'UPI')}
+                            className="mr-2 text-blue-600 focus:ring-blue-500"
+                          />
+                          Cheque
+                        </label>
+                        <label className="flex items-center">
+                          <input
+                            type="radio"
+                            name={`mode-${index}`}
+                            value="UPI"
+                            checked={tithe.modeOfPayment === 'UPI'}
+                            onChange={(e) => handleTitheChange(index, 'modeOfPayment', e.target.value as 'Cash' | 'Cheque' | 'UPI')}
+                            className="mr-2 text-blue-600 focus:ring-blue-500"
+                          />
+                          UPI
+                        </label>
+                      </div>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Ammount
+                        UPI/Cheque no
                       </label>
                       <div className="relative">
                         <input
                           type="text"
-                          placeholder="Input text"
-                          value={tithe.amount}
-                          onChange={(e) => handleTitheChange(index, 'amount', e.target.value)}
-                          className="w-full px-3 py-2 bg-white border border-gray-300 text-gray-900 placeholder-gray-500 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none"
+                          placeholder={tithe.modeOfPayment === 'Cash' ? 'Not required for cash' : 'Input text'}
+                          value={tithe.upiChequeNo}
+                          onChange={(e) => handleTitheChange(index, 'upiChequeNo', e.target.value)}
+                          disabled={tithe.modeOfPayment === 'Cash'}
+                          className={`w-full px-3 py-2 border rounded-lg outline-none ${
+                            tithe.modeOfPayment === 'Cash' 
+                              ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' 
+                              : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500 focus:border-blue-500'
+                          }`}
                         />
-                        <button
-                          type="button"
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          onClick={() => clearTitheField(index, 'amount')}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                          </svg>
-                        </button>
+                        {tithe.modeOfPayment !== 'Cash' && (
+                          <button
+                            type="button"
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            onClick={() => clearTitheField(index, 'upiChequeNo')}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </div>
-                  </div>
 
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Mode of payment
-                    </label>
-                    <div className="flex items-center space-x-4">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name={`mode-${index}`}
-                          value="Cash"
-                          checked={tithe.modeOfPayment === 'Cash'}
-                          onChange={(e) => handleTitheChange(index, 'modeOfPayment', e.target.value as 'Cash' | 'Cheque' | 'UPI')}
-                          className="mr-2 text-blue-600 focus:ring-blue-500"
-                        />
-                        Cash
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name={`mode-${index}`}
-                          value="Cheque"
-                          checked={tithe.modeOfPayment === 'Cheque'}
-                          onChange={(e) => handleTitheChange(index, 'modeOfPayment', e.target.value as 'Cash' | 'Cheque' | 'UPI')}
-                          className="mr-2 text-blue-600 focus:ring-blue-500"
-                        />
-                        Cheque
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name={`mode-${index}`}
-                          value="UPI"
-                          checked={tithe.modeOfPayment === 'UPI'}
-                          onChange={(e) => handleTitheChange(index, 'modeOfPayment', e.target.value as 'Cash' | 'Cheque' | 'UPI')}
-                          className="mr-2 text-blue-600 focus:ring-blue-500"
-                        />
-                        UPI
-                      </label>
-                    </div>
+                    {formData.tithes.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeTithe(index)}
+                        className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors p-1 rounded-full hover:bg-red-50"
+                        title="Remove tithe entry"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                      </button>
+                    )}
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      UPI/Cheque no
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder={tithe.modeOfPayment === 'Cash' ? 'Not required for cash' : 'Input text'}
-                        value={tithe.upiChequeNo}
-                        onChange={(e) => handleTitheChange(index, 'upiChequeNo', e.target.value)}
-                        disabled={tithe.modeOfPayment === 'Cash'}
-                        className={`w-full px-3 py-2 border rounded-lg outline-none ${
-                          tithe.modeOfPayment === 'Cash' 
-                            ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed' 
-                            : 'bg-white border-gray-300 text-gray-900 focus:ring-blue-500 focus:border-blue-500'
-                        }`}
-                      />
-                      {tithe.modeOfPayment !== 'Cash' && (
-                        <button
-                          type="button"
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          onClick={() => clearTitheField(index, 'upiChequeNo')}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                          </svg>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {formData.tithes.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeTithe(index)}
-                      className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors p-1 rounded-full hover:bg-red-50"
-                      title="Remove tithe entry"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                      </svg>
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
           
-          {/* Add More Button - Centered */}
-          <div className="flex justify-center pt-4">
-            <Button
-              onClick={addMoreTithes}
-              className="bg-blue-600 hover:bg-blue-700 text-white border border-blue-600 px-6 py-2 rounded-md font-medium flex items-center gap-2"
-            >
-              Add More
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-              </svg>
-            </Button>
-          </div>
+          {/* Add More Button - Centered - Only show when not editing */}
+          {!editData && (
+            <div className="flex justify-center pt-4">
+              <Button
+                onClick={addMoreTithes}
+                className="bg-blue-600 hover:bg-blue-700 text-white border border-blue-600 px-6 py-2 rounded-md font-medium flex items-center gap-2"
+              >
+                Add More
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+              </Button>
+            </div>
+          )}
         </ModalBody>
         
         <ModalFooter className="bg-gray-100 border-gray-200">
@@ -668,7 +712,7 @@ export function OffertoryModal({ isOpen, onClose, onSave }: OffertoryModalProps)
                 </>
               ) : (
                 <>
-                  Save
+                  {editData ? 'Update' : 'Save'}
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
                   </svg>
