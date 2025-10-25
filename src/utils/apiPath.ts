@@ -15,7 +15,7 @@ export const API_PATHS = {
   BUDGET_YEAR: (year: string) => `${API_BASE_URL}/budget/year/${year}`,
   
   // Transactions
-  TRANSACTIONS: `${API_BASE_URL}/get-transactions`,
+  TRANSACTIONS: `/get-transactions`,
   ADD_TRANSACTIONS: `${API_BASE_URL}/add-transaction`,
   UPDATE_TRANSACTION: `${API_BASE_URL}/add-transaction`,
   

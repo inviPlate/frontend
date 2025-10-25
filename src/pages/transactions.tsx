@@ -170,21 +170,41 @@ export default function Transactions() {
   // Fetch offertory data from API
   const fetchOffertoryData = useCallback(async (page: number = 1) => {
     const yearId = getCurrentYearId();
-    if (!yearId) return;
+    if (!yearId) {
+      console.log('No yearId found for offertory, skipping API call');
+      return;
+    }
 
+    console.log(`Fetching offertory for yearId: ${yearId}, page: ${page}`);
     setIsLoadingOffertory(true);
     try {
-      const response = await axiosInstance.get(`${API_PATHS.GET_OFFERTORY}?year_id=${yearId}&page=${page}&pageSize=${offertoryPageSize}`);
+      const url = `${API_PATHS.GET_OFFERTORY}?yearId=${yearId}&page=${page}&pageSize=${offertoryPageSize}`;
+      console.log('Offertory API URL:', url);
+      const response = await axiosInstance.get(url);
       console.log('Offertory API Response:', response.data);
       
       const data = response.data?.data || [];
       const pagination = response.data?.pagination || {};
       
-      setOffertoryData(data);
-      setOffertoryTotal(pagination.totalItems || 0);
-      setOffertoryTotalPages(pagination.totalPages || 0);
-      setOffertoryHasNext(pagination.hasNext || false);
-      setOffertoryHasPrev(pagination.hasPrev || false);
+      // Filter data to ensure only items for the selected year are displayed
+      const filteredData = data.filter((item: any) => {
+        if (!item || typeof item !== 'object') {
+          return false;
+        }
+        // Check if the item belongs to the selected year
+        if (item.year_id && item.year_id !== yearId) {
+          console.log(`Filtering out offertory ${item.id} with year_id ${item.year_id}, expected ${yearId}`);
+          return false;
+        }
+        return true;
+      });
+      
+      console.log(`Filtered offertory: ${filteredData.length} items for yearId ${yearId}`);
+      setOffertoryData(filteredData);
+      setOffertoryTotal(filteredData.length); // Use filtered count
+      setOffertoryTotalPages(Math.ceil(filteredData.length / offertoryPageSize));
+      setOffertoryHasNext(false); // Disable pagination for client-side filtering
+      setOffertoryHasPrev(false);
     } catch (error) {
       console.error('Error fetching offertory data:', error);
       setOffertoryData([]);
@@ -200,21 +220,44 @@ export default function Transactions() {
   // Fetch transactions data from API
   const fetchTransactionsData = useCallback(async (page: number = 1) => {
     const yearId = getCurrentYearId();
-    if (!yearId) return;
+    if (!yearId) {
+      console.log('No yearId found for transactions, skipping API call');
+      return;
+    }
 
+    console.log(`Fetching transactions for yearId: ${yearId}, page: ${page}`);
     setIsLoadingTransactions(true);
     try {
-      const response = await axiosInstance.get(`${API_PATHS.TRANSACTIONS}?year_id=${yearId}&page=${page}&pageSize=${transactionsPageSize}`);
+      const url = `${API_PATHS.TRANSACTIONS}?yearId=${yearId}&page=${page}&pageSize=${transactionsPageSize}`;
+      console.log('Transactions API URL:', url);
+      const response = await axiosInstance.get(url);
       console.log('Transactions API Response:', response.data);
+      console.log('Response data length:', response.data?.data?.length);
+      console.log('First few items:', response.data?.data?.slice(0, 3));
       
       const data = response.data?.data || [];
       const pagination = response.data?.pagination || {};
       
-      setTransactionsData(data);
-      setTransactionsTotal(pagination.totalItems || 0);
-      setTransactionsTotalPages(pagination.totalPages || 0);
-      setTransactionsHasNext(pagination.hasNext || false);
-      setTransactionsHasPrev(pagination.hasPrev || false);
+      // Filter data to ensure only items for the selected year are displayed
+      const filteredData = data.filter((item: any) => {
+        if (!item || typeof item !== 'object') {
+          return false;
+        }
+        // Check if the item belongs to the selected year
+        // For transactions, we need to check year_head.year_id
+        if (item.year_head && item.year_head.year_id && item.year_head.year_id !== yearId) {
+          console.log(`Filtering out transaction ${item.id} with year_id ${item.year_head.year_id}, expected ${yearId}`);
+          return false;
+        }
+        return true;
+      });
+      
+      console.log(`Filtered transactions: ${filteredData.length} items for yearId ${yearId}`);
+      setTransactionsData(filteredData);
+      setTransactionsTotal(filteredData.length); // Use filtered count
+      setTransactionsTotalPages(Math.ceil(filteredData.length / transactionsPageSize));
+      setTransactionsHasNext(false); // Disable pagination for client-side filtering
+      setTransactionsHasPrev(false);
     } catch (error) {
       console.error('Error fetching transactions data:', error);
       setTransactionsData([]);
@@ -258,11 +301,6 @@ export default function Transactions() {
               setSelectedYear(year);
               setOffertoryPage(1); // Reset to first page
               setTransactionsPage(1); // Reset to first page for transactions
-              // Fetch new data for the selected year
-              setTimeout(() => {
-                fetchOffertoryData(1);
-                fetchTransactionsData(1); // Reset to first page for transactions
-              }, 100);
             }}
             onYearsLoaded={useCallback((years: Array<{ id: number; year: string; is_active: boolean; is_deleted: boolean }>) => {
               setFiscalYears(years);
