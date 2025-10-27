@@ -16,8 +16,8 @@ export const API_PATHS = {
   
   // Transactions
   TRANSACTIONS: `/get-transactions`,
-  ADD_TRANSACTIONS: `${API_BASE_URL}/add-transaction`,
-  UPDATE_TRANSACTION: `${API_BASE_URL}/add-transaction`,
+  ADD_TRANSACTIONS: `/add-transaction`,
+  UPDATE_TRANSACTION: `/add-transaction`,
   
   // Receipts
   RECEIPTS: `${API_BASE_URL}/get-receipts`,
