@@ -199,11 +199,15 @@ export default function Transactions() {
       });
       
       console.log(`Filtered offertory: ${filteredData.length} items for yearId ${yearId}`);
+      
+      // Use pagination from API response
+      const pagination = response.data.pagination || {};
+      
       setOffertoryData(filteredData);
-      setOffertoryTotal(filteredData.length); // Use filtered count
-      setOffertoryTotalPages(Math.ceil(filteredData.length / offertoryPageSize));
-      setOffertoryHasNext(false); // Disable pagination for client-side filtering
-      setOffertoryHasPrev(false);
+      setOffertoryTotal(pagination.totalItems || filteredData.length);
+      setOffertoryTotalPages(pagination.totalPages || Math.ceil(filteredData.length / offertoryPageSize));
+      setOffertoryHasNext(pagination.hasNext || false);
+      setOffertoryHasPrev(pagination.hasPrev || false);
     } catch (error) {
       console.error('Error fetching offertory data:', error);
       setOffertoryData([]);
@@ -251,11 +255,15 @@ export default function Transactions() {
       });
       
       console.log(`Filtered transactions: ${filteredData.length} items for yearId ${yearId}`);
+      
+      // Use pagination from API response
+      const pagination = response.data.pagination || {};
+      
       setTransactionsData(filteredData);
-      setTransactionsTotal(filteredData.length); // Use filtered count
-      setTransactionsTotalPages(Math.ceil(filteredData.length / transactionsPageSize));
-      setTransactionsHasNext(false); // Disable pagination for client-side filtering
-      setTransactionsHasPrev(false);
+      setTransactionsTotal(pagination.totalItems || filteredData.length);
+      setTransactionsTotalPages(pagination.totalPages || Math.ceil(filteredData.length / transactionsPageSize));
+      setTransactionsHasNext(pagination.hasNext || false);
+      setTransactionsHasPrev(pagination.hasPrev || false);
     } catch (error) {
       console.error('Error fetching transactions data:', error);
       setTransactionsData([]);
