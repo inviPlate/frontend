@@ -48,9 +48,11 @@ export const API_PATHS = {
   MEMBER: (id: string) => `${API_BASE_URL}/members/${id}`,
   
   // Deposits
-  GET_DEPOSITS: `/add-deposit`,
-  ADD_DEPOSIT: `/add-deposit`,
-  UPDATE_DEPOSIT: `/add-deposit`,
+  GET_DEPOSITS: `/addDeposit`,
+  ADD_DEPOSIT: `/addDeposit`,
+  UPDATE_DEPOSIT: `/addDeposit`,
+  GET_BALANCE: `/funds-operation`,
+  UPDATE_FUND: `/funds-operation`,
   
   // Add other budget-related paths as needed
 } as const;

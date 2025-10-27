@@ -1,8 +1,9 @@
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, Button } from "flowbite-react";
 import { useState, useEffect } from "react";
-import useAxiosDEV from "../context/useAxiosDEV";
+import useAxios from "../context/useAxios";
 import { API_PATHS } from "../utils/apiPath";
 import { AddDepositModal } from "../components/AddDepositModal";
+import { EditBankBalanceModal } from "../components/EditBankBalanceModal";
 
 interface Deposit {
     id: number;
@@ -29,7 +30,9 @@ export function Funds() {
     const [isLoading, setIsLoading] = useState(false);
     const [deposits, setDeposits] = useState<Deposit[]>([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isEditBankBalanceModalOpen, setIsEditBankBalanceModalOpen] = useState(false);
     const [editingDeposit, setEditingDeposit] = useState<Deposit | null>(null);
+    const [balance, setBalance] = useState({ balance: 0, bank_balance: 0 });
     const [pagination, setPagination] = useState<PaginationInfo>({
         page: 1,
         pageSize: 10,
@@ -38,7 +41,7 @@ export function Funds() {
         hasNext: false,
         hasPrev: false
     });
-    const axiosInstance = useAxiosDEV();
+    const axiosInstance = useAxios();
 
     // Fetch deposits on component mount
     useEffect(() => {
@@ -57,6 +60,20 @@ export function Funds() {
         };
 
         fetchDeposits();
+    }, [axiosInstance]);
+
+    // Fetch balance on component mount
+    useEffect(() => {
+        const fetchBalance = async () => {
+            try {
+                const response = await axiosInstance.get(API_PATHS.GET_BALANCE);
+                setBalance(response.data.data);
+            } catch (error) {
+                console.error('Error fetching balance:', error);
+            }
+        };
+
+        fetchBalance();
     }, [axiosInstance]);
 
     const formatCurrency = (amount: number) => {
@@ -100,6 +117,18 @@ export function Funds() {
         setEditingDeposit(null);
     };
 
+    const handleEditBankBalance = () => {
+        setIsEditBankBalanceModalOpen(true);
+    };
+
+    const handleCloseBankBalanceModal = () => {
+        setIsEditBankBalanceModalOpen(false);
+    };
+
+    const handleSaveBankBalance = (newBankBalance: number) => {
+        setBalance(prev => ({ ...prev, bank_balance: newBankBalance }));
+    };
+
     const handleSaveDeposit = (depositData: any) => {
         if (editingDeposit) {
             // Update existing deposit in the list
@@ -138,7 +167,39 @@ export function Funds() {
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">Funds</h1>
             </div>
 
-            {/* Header with Deposits Title and Add Button */}
+            {/* Info Cards */}
+            <div className="grid grid-cols-3 gap-6 mb-6">
+                {/* Funds Card */}
+                <div className="bg-white rounded-lg shadow p-6">
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Funds</h3>
+                    <p className="text-3xl font-bold text-gray-900">{deposits.length}</p>
+                </div>
+
+                {/* Current Balance Card */}
+                <div className="bg-white rounded-lg shadow p-6">
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Current Balance</h3>
+                    <p className="text-3xl font-bold text-green-600">{formatCurrency(balance.balance)}</p>
+                </div>
+
+                {/* Bank Balance Card */}
+                <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-lg font-semibold text-gray-700">Bank Balance</h3>
+                        <button 
+                            onClick={handleEditBankBalance}
+                            className="text-gray-400 hover:text-blue-600 transition-colors"
+                            title="Edit Bank Balance"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <p className="text-3xl font-bold text-blue-600">{formatCurrency(balance.bank_balance)}</p>
+                </div>
+            </div>
+            
+            {/* Header with Funds Title and Add Button */}
             <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center space-x-4">
                     <h2 className="text-xl font-semibold text-gray-900">Deposits</h2>
@@ -285,6 +346,14 @@ export function Funds() {
                 onClose={handleCloseModal}
                 onSave={handleSaveDeposit}
                 editData={editingDeposit}
+            />
+
+            {/* Edit Bank Balance Modal */}
+            <EditBankBalanceModal
+                isOpen={isEditBankBalanceModalOpen}
+                onClose={handleCloseBankBalanceModal}
+                onSave={handleSaveBankBalance}
+                currentBalance={balance.bank_balance}
             />
         </div>
     );
