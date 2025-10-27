@@ -258,12 +258,12 @@ export default function Budget() {
     }
   };
 
-  const handleSaveIncomeData = (data: BudgetHeadData) => {
+  const handleSaveIncomeData = (_data: BudgetHeadData) => {
     // Refresh income data after saving
     fetchBudgetData('income', incomePage, debouncedIncomeSearchTerm);
   };
 
-  const handleSaveExpenseData = (data: BudgetHeadData) => {
+  const handleSaveExpenseData = (_data: BudgetHeadData) => {
     // Refresh expense data after saving
     fetchBudgetData('expense', expensePage, debouncedExpenseSearchTerm);
   };
@@ -276,7 +276,7 @@ export default function Budget() {
     setIsAddYearModalOpen(false);
   };
 
-  const handleSaveYearData = (data: { year: string; clone_from_id: number }) => {
+  const handleSaveYearData = (_data: { year: string; clone_from_id: number }) => {
     // Refresh fiscal years list after saving
     // The YearSelector will automatically refresh when fiscalYears state updates
     setIsAddYearModalOpen(false);

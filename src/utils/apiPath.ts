@@ -2,6 +2,7 @@ const API_BASE_URL = '';
 
 export const API_PATHS = {
   // Budget Management
+  CREATE_BUDGET_HEAD: `/add-budget-head`,
   BUDGET_HEADS: `get-heads`,
   BUDGET_HEAD: (id: string) => `${API_BASE_URL}/budget-heads/${id}`,
   CREATE_BUDGET: `/add-budget`,
@@ -53,6 +54,11 @@ export const API_PATHS = {
   UPDATE_DEPOSIT: `/addDeposit`,
   GET_BALANCE: `/funds-operation`,
   UPDATE_FUND: `/funds-operation`,
+  
+  // Advances
+  GET_ADVANCES: `/advance-ops`,
+  ADD_ADVANCE: `/advance-ops`,
+  UPDATE_ADVANCE: `/advance-ops`,
   
   // Add other budget-related paths as needed
 } as const;

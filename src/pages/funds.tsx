@@ -4,6 +4,7 @@ import useAxios from "../context/useAxios";
 import { API_PATHS } from "../utils/apiPath";
 import { AddDepositModal } from "../components/AddDepositModal";
 import { EditBankBalanceModal } from "../components/EditBankBalanceModal";
+import { AddAdvanceModal } from "../components/AddAdvanceModal";
 
 interface Deposit {
     id: number;
@@ -15,6 +16,15 @@ interface Deposit {
     maturity_date: string;
     rate_of_interest: number;
     is_active: boolean;
+}
+
+interface Advance {
+    id: number;
+    amount: number;
+    towards: string;
+    is_recovered?: boolean;
+    created_at?: string;
+    updated_at?: string;
 }
 
 interface PaginationInfo {
@@ -29,9 +39,12 @@ interface PaginationInfo {
 export function Funds() {
     const [isLoading, setIsLoading] = useState(false);
     const [deposits, setDeposits] = useState<Deposit[]>([]);
+    const [advances, setAdvances] = useState<Advance[]>([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditBankBalanceModalOpen, setIsEditBankBalanceModalOpen] = useState(false);
+    const [isAddAdvanceModalOpen, setIsAddAdvanceModalOpen] = useState(false);
     const [editingDeposit, setEditingDeposit] = useState<Deposit | null>(null);
+    const [editingAdvance, setEditingAdvance] = useState<Advance | null>(null);
     const [balance, setBalance] = useState({ balance: 0, bank_balance: 0 });
     const [pagination, setPagination] = useState<PaginationInfo>({
         page: 1,
@@ -76,6 +89,21 @@ export function Funds() {
         fetchBalance();
     }, [axiosInstance]);
 
+    // Fetch advances on component mount
+    useEffect(() => {
+        const fetchAdvances = async () => {
+            try {
+                const response = await axiosInstance.get(API_PATHS.GET_ADVANCES);
+                setAdvances(response.data.data || []);
+            } catch (error) {
+                console.error('Error fetching advances:', error);
+                setAdvances([]);
+            }
+        };
+
+        fetchAdvances();
+    }, [axiosInstance]);
+
     const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat('hi-IN', {
             style: 'currency',
@@ -112,9 +140,15 @@ export function Funds() {
         setIsAddModalOpen(true);
     };
 
-    const handleCloseModal = () => {
+    const handleCloseModal = async () => {
         setIsAddModalOpen(false);
         setEditingDeposit(null);
+        try {
+            const response = await axiosInstance.get(API_PATHS.GET_BALANCE);
+            setBalance(response.data.data);
+        } catch (error) {
+            console.error('Error fetching balance:', error);
+        }
     };
 
     const handleEditBankBalance = () => {
@@ -127,6 +161,37 @@ export function Funds() {
 
     const handleSaveBankBalance = (newBankBalance: number) => {
         setBalance(prev => ({ ...prev, bank_balance: newBankBalance }));
+    };
+
+    const handleAddAdvance = () => {
+        setEditingAdvance(null);
+        setIsAddAdvanceModalOpen(true);
+    };
+
+    const handleEditAdvance = (advance: Advance) => {
+        setEditingAdvance(advance);
+        setIsAddAdvanceModalOpen(true);
+    };
+
+    const handleCloseAdvanceModal = () => {
+        setIsAddAdvanceModalOpen(false);
+        setEditingAdvance(null);
+    };
+
+    const handleSaveAdvance = (advanceData: Advance) => {
+        if (editingAdvance) {
+            // Update existing advance in the list
+            setAdvances(prev => prev.map(advance => 
+                advance.id === editingAdvance.id 
+                    ? { ...advance, ...advanceData }
+                    : advance
+            ));
+        } else {
+            // Add the new advance to the list
+            setAdvances(prev => [...prev, advanceData]);
+        }
+        setIsAddAdvanceModalOpen(false);
+        setEditingAdvance(null);
     };
 
     const handleSaveDeposit = (depositData: any) => {
@@ -340,6 +405,64 @@ export function Funds() {
                 </div>
             )}
 
+            {/* Advances Table */}
+            <div className="mt-8 mb-6">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900">Advances</h2>
+                    <Button 
+                        className="flex items-center space-x-2"
+                        onClick={handleAddAdvance}
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                        <span>Add Advance</span>
+                    </Button>
+                </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow overflow-hidden">
+                {advances.length === 0 ? (
+                    <div className="p-8 text-center">
+                        <p className="text-gray-500">No advances found.</p>
+                    </div>
+                ) : (
+                    <Table>
+                        <TableHead>
+                            <TableRow>
+                                <TableHeadCell className="text-center">Amount</TableHeadCell>
+                                <TableHeadCell className="text-center">Towards</TableHeadCell>
+                                <TableHeadCell className="text-center">Actions</TableHeadCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody className="divide-y">
+                            {advances.map((advance) => (
+                                <TableRow key={advance.id} className="bg-white hover:bg-gray-50">
+                                    <TableCell className="font-medium text-gray-900 text-center">
+                                        {formatCurrency(advance.amount)}
+                                    </TableCell>
+                                    <TableCell className="text-center text-gray-600">
+                                        {advance.towards}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        <div className="flex justify-center space-x-2">
+                                            <button 
+                                                className="text-blue-600 hover:text-blue-900 p-1"
+                                                onClick={() => handleEditAdvance(advance)}
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                )}
+            </div>
+
             {/* Add Deposit Modal */}
             <AddDepositModal
                 isOpen={isAddModalOpen}
@@ -354,6 +477,14 @@ export function Funds() {
                 onClose={handleCloseBankBalanceModal}
                 onSave={handleSaveBankBalance}
                 currentBalance={balance.bank_balance}
+            />
+
+            {/* Add/Edit Advance Modal */}
+            <AddAdvanceModal
+                isOpen={isAddAdvanceModalOpen}
+                onClose={handleCloseAdvanceModal}
+                onSave={handleSaveAdvance}
+                editData={editingAdvance}
             />
         </div>
     );

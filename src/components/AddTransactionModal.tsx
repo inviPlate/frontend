@@ -1,7 +1,6 @@
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "flowbite-react";
 import { useState, useEffect } from "react";
 import useAxios from "../context/useAxios";
-import useAxiosDEV from "../context/useAxiosDEV";
 import { API_PATHS } from "../utils/apiPath";
 import { HeadAutocomplete } from "./HeadAutocomplete";
 import { MemberNameInput } from "./MemberNameInput";
@@ -53,7 +52,6 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState<boolean>(false);
   const [prefilledMemberName, setPrefilledMemberName] = useState<string>('');
   const axiosInstance = useAxios();
-  const axiosInstanceDEV = useAxiosDEV();
 
   // Clear selected head when modal closes
   useEffect(() => {

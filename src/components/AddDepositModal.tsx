@@ -1,6 +1,6 @@
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "flowbite-react";
 import { useState, useEffect } from "react";
-import useAxiosDEV from "../context/useAxiosDEV";
+import useAxios from "../context/useAxios";
 import { API_PATHS } from "../utils/apiPath";
 
 interface AddDepositModalProps {
@@ -33,7 +33,7 @@ export function AddDepositModal({ isOpen, onClose, onSave, editData }: AddDeposi
   });
 
   const [isSaving, setIsSaving] = useState(false);
-  const axiosInstance = useAxiosDEV();
+  const axiosInstance = useAxios();
 
   // Populate form with edit data when provided
   useEffect(() => {
@@ -76,7 +76,7 @@ export function AddDepositModal({ isOpen, onClose, onSave, editData }: AddDeposi
     return (depositValue + interest).toFixed(2) as unknown as number;
   };
 
-  const handleInputChange = (field: keyof DepositData, value: string | number) => {
+  const handleInputChange = (field: keyof DepositData, value: string | number | boolean) => {
     setFormData(prev => {
       const newData = {
         ...prev,

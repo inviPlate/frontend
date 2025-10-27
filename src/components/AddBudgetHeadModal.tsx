@@ -36,7 +36,7 @@ export function AddBudgetHeadModal({ isOpen, onClose, onSave }: AddBudgetHeadMod
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const response = await axiosInstance.post(API_PATHS.Create_BUDGET_HEAD, formData);
+      const response = await axiosInstance.post(API_PATHS.CREATE_BUDGET_HEAD, formData);
       const savedData = response.data;
       
       // Pass saved data to parent component

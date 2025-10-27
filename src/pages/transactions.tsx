@@ -122,7 +122,7 @@ export default function Transactions() {
   };
 
   // Handle saving new transaction (now just for refreshing data)
-  const handleSaveTransaction = async (transactionData: any) => {
+  const handleSaveTransaction = async (_transactionData: any) => {
     try {
       // Refresh the transactions data after successful save
       fetchTransactionsData(transactionsPage);
@@ -157,7 +157,7 @@ export default function Transactions() {
   };
 
   // Handle saving offertory (refresh data)
-  const handleSaveOffertory = async (offertoryData: any) => {
+  const handleSaveOffertory = async () => {
     try {
       // Refresh the offertory data after successful save
       fetchOffertoryData(offertoryPage);
@@ -184,7 +184,6 @@ export default function Transactions() {
       console.log('Offertory API Response:', response.data);
       
       const data = response.data?.data || [];
-      const pagination = response.data?.pagination || {};
       
       // Filter data to ensure only items for the selected year are displayed
       const filteredData = data.filter((item: any) => {
@@ -236,7 +235,6 @@ export default function Transactions() {
       console.log('First few items:', response.data?.data?.slice(0, 3));
       
       const data = response.data?.data || [];
-      const pagination = response.data?.pagination || {};
       
       // Filter data to ensure only items for the selected year are displayed
       const filteredData = data.filter((item: any) => {

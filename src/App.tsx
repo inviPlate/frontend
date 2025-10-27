@@ -1,11 +1,7 @@
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css'
 import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignUpButton,
-  UserButton, Protect
+  Protect
 } from '@clerk/clerk-react'
 import SignInPage from './pages/signin'
 import Overview from './pages/overview'
