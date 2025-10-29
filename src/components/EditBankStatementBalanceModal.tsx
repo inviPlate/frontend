@@ -3,59 +3,48 @@ import { useState, useEffect } from "react";
 import useAxios from "../context/useAxios";
 import { API_PATHS } from "../utils/apiPath";
 
-interface EditBankBalanceModalProps {
+interface EditBankStatementBalanceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (newCashBalance: number, newBankBalance: number) => void;
-  currentCashBalance: number;
-  currentBankBalance: number;
+  onSave: (bankStatementBalance: number) => void;
+  currentBalance: number;
 }
 
-export function EditBankBalanceModal({ isOpen, onClose, onSave, currentCashBalance, currentBankBalance }: EditBankBalanceModalProps) {
-  const [cashDeposit, setCashDeposit] = useState<number>(0);
+export function EditBankStatementBalanceModal({ isOpen, onClose, onSave, currentBalance }: EditBankStatementBalanceModalProps) {
+  const [bankStatementBalance, setBankStatementBalance] = useState<number>(currentBalance);
   const [isSaving, setIsSaving] = useState(false);
   const axiosInstance = useAxios();
 
   useEffect(() => {
     if (isOpen) {
-      setCashDeposit(0);
+      setBankStatementBalance(currentBalance);
     }
-  }, [isOpen]);
+  }, [currentBalance, isOpen]);
 
   const handleSave = async () => {
-    if (!cashDeposit || cashDeposit <= 0) {
-      alert('Please enter a valid cash deposit amount');
-      return;
-    }
-
-    if (cashDeposit > currentCashBalance) {
-      alert('Cash deposit cannot exceed current cash balance');
+    if (!bankStatementBalance || bankStatementBalance < 0) {
+      console.error('Please enter a valid bank statement balance');
       return;
     }
 
     setIsSaving(true);
     try {
-      const newCashBalance = currentCashBalance - cashDeposit;
-      const newBankBalance = currentBankBalance + cashDeposit;
-
       const response = await axiosInstance.put(API_PATHS.UPDATE_FUND, {
-        cash_balance: newCashBalance,
-        bank_balance: newBankBalance
+        bank_statement_balance: bankStatementBalance
       });
       
-      console.log('Cash deposit processed successfully:', response.data);
-      onSave(newCashBalance, newBankBalance);
+      console.log('Bank statement balance updated successfully:', response.data);
+      onSave(bankStatementBalance);
       onClose();
     } catch (error) {
-      console.error('Error processing cash deposit:', error);
-      alert('Failed to process cash deposit. Please try again.');
+      console.error('Error updating bank statement balance:', error);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleClose = () => {
-    setCashDeposit(0);
+    setBankStatementBalance(currentBalance);
     onClose();
   };
 
@@ -70,45 +59,37 @@ export function EditBankBalanceModal({ isOpen, onClose, onSave, currentCashBalan
     <Modal className="bg-white [&>*]:!bg-white [&_*]:!text-gray-900" show={isOpen} onClose={handleClose} size="md">
       <ModalHeader className="bg-white text-gray-900 border-gray-200">
         <div>
-          <div className="text-lg font-semibold">Enter Cash Deposit</div>
+          <div className="text-lg font-semibold">Edit Bank Statement Balance</div>
           <div className="text-sm text-gray-600">
-            Deposit cash from cash balance to bank balance
+            Update the current bank statement balance
           </div>
         </div>
       </ModalHeader>
 
       <ModalBody className="bg-white">
         <div className="space-y-6">
-          {/* Current Balances Display */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <label className="text-sm font-medium text-gray-700">Current Cash Balance</label>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(currentCashBalance)}</p>
-            </div>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <label className="text-sm font-medium text-gray-700">Current Bank Balance</label>
-              <p className="text-2xl font-bold text-blue-600">{formatCurrency(currentBankBalance)}</p>
-            </div>
+          {/* Current Bank Statement Balance Display */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <label className="text-sm font-medium text-gray-700">Current Bank Statement Balance</label>
+            <p className="text-2xl font-bold text-blue-600">{formatCurrency(currentBalance)}</p>
           </div>
 
-          {/* Cash Deposit Input */}
+          {/* New Bank Statement Balance Input */}
           <div>
-            <label htmlFor="cash_deposit" className="mb-2 block text-sm font-medium text-gray-900">
-              Cash Deposit Amount *
+            <label htmlFor="bank_statement_balance" className="mb-2 block text-sm font-medium text-gray-900">
+              New Bank Statement Balance *
             </label>
             <input
-              id="cash_deposit"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="Enter cash deposit amount"
+              id="bank_statement_balance"
+              type="text"
+              placeholder="Enter new bank statement balance"
               required
-              value={cashDeposit || ''}
-              onChange={(e) => setCashDeposit(parseFloat(e.target.value) || 0)}
+              value={bankStatementBalance || ''}
+              onChange={(e) => setBankStatementBalance(parseFloat(e.target.value) || 0)}
               className="w-full px-3 py-2 bg-blue-50 border border-blue-200 text-gray-900 placeholder-gray-500 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Amount will be deducted from cash balance and added to bank balance
+              Enter the updated bank statement balance amount
             </p>
           </div>
         </div>
@@ -127,7 +108,7 @@ export function EditBankBalanceModal({ isOpen, onClose, onSave, currentCashBalan
             </svg>
           ) : (
             <>
-              Process Cash Deposit
+              Update Bank Statement Balance
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
               </svg>

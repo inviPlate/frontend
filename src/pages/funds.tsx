@@ -4,6 +4,7 @@ import useAxios from "../context/useAxios";
 import { API_PATHS } from "../utils/apiPath";
 import { AddDepositModal } from "../components/AddDepositModal";
 import { EditBankBalanceModal } from "../components/EditBankBalanceModal";
+import { EditBankStatementBalanceModal } from "../components/EditBankStatementBalanceModal";
 import { AddAdvanceModal } from "../components/AddAdvanceModal";
 
 interface Deposit {
@@ -42,10 +43,11 @@ export function Funds() {
     const [advances, setAdvances] = useState<Advance[]>([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditBankBalanceModalOpen, setIsEditBankBalanceModalOpen] = useState(false);
+    const [isEditBankStatementBalanceModalOpen, setIsEditBankStatementBalanceModalOpen] = useState(false);
     const [isAddAdvanceModalOpen, setIsAddAdvanceModalOpen] = useState(false);
     const [editingDeposit, setEditingDeposit] = useState<Deposit | null>(null);
     const [editingAdvance, setEditingAdvance] = useState<Advance | null>(null);
-    const [balance, setBalance] = useState({ balance: 0, bank_balance: 0 });
+    const [balance, setBalance] = useState({ cash_balance: 0, bank_balance: 0, bank_statement_balance: 0 });
     const [pagination, setPagination] = useState<PaginationInfo>({
         page: 1,
         pageSize: 10,
@@ -61,7 +63,7 @@ export function Funds() {
         const fetchDeposits = async () => {
             setIsLoading(true);
             try {
-                const response = await axiosInstance.get(API_PATHS.GET_DEPOSITS);
+                const response = await axiosInstance.get(`${API_PATHS.GET_DEPOSITS}?page=${pagination.page}&pageSize=${pagination.pageSize}&isActive=true`);
                 setDeposits(response.data.data);
                 setPagination(response.data.pagination);
             } catch (error) {
@@ -159,8 +161,31 @@ export function Funds() {
         setIsEditBankBalanceModalOpen(false);
     };
 
-    const handleSaveBankBalance = (newBankBalance: number) => {
-        setBalance(prev => ({ ...prev, bank_balance: newBankBalance }));
+    const handleSaveBankBalance = async (newCashBalance: number, newBankBalance: number) => {
+        setBalance(prev => ({ 
+            ...prev, 
+            cash_balance: newCashBalance,
+            bank_balance: newBankBalance 
+        }));
+        // Refresh balance from API
+        try {
+            const response = await axiosInstance.get(API_PATHS.GET_BALANCE);
+            setBalance(response.data.data);
+        } catch (error) {
+            console.error('Error fetching balance:', error);
+        }
+    };
+
+    const handleEditBankStatementBalance = () => {
+        setIsEditBankStatementBalanceModalOpen(true);
+    };
+
+    const handleCloseBankStatementBalanceModal = () => {
+        setIsEditBankStatementBalanceModalOpen(false);
+    };
+
+    const handleSaveBankStatementBalance = (newBankStatementBalance: number) => {
+        setBalance(prev => ({ ...prev, bank_statement_balance: newBankStatementBalance }));
     };
 
     const handleAddAdvance = () => {
@@ -216,7 +241,7 @@ export function Funds() {
         
         setIsLoading(true);
         try {
-            const response = await axiosInstance.get(`${API_PATHS.GET_DEPOSITS}?page=${newPage}&pageSize=${pagination.pageSize}`);
+            const response = await axiosInstance.get(`${API_PATHS.GET_DEPOSITS}?page=${newPage}&pageSize=${pagination.pageSize}&isActive=true`);
             setDeposits(response.data.data);
             setPagination(response.data.pagination);
         } catch (error) {
@@ -233,17 +258,17 @@ export function Funds() {
             </div>
 
             {/* Info Cards */}
-            <div className="grid grid-cols-3 gap-6 mb-6">
+            <div className="grid grid-cols-4 gap-6 mb-6">
                 {/* Funds Card */}
                 <div className="bg-white rounded-lg shadow p-6">
                     <h3 className="text-lg font-semibold text-gray-700 mb-2">Funds</h3>
                     <p className="text-3xl font-bold text-gray-900">{deposits.length}</p>
                 </div>
 
-                {/* Current Balance Card */}
+                {/* Cash Balance Card */}
                 <div className="bg-white rounded-lg shadow p-6">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Current Balance</h3>
-                    <p className="text-3xl font-bold text-green-600">{formatCurrency(balance.balance)}</p>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-2">Cash Balance</h3>
+                    <p className="text-3xl font-bold text-green-600">{formatCurrency(balance.cash_balance)}</p>
                 </div>
 
                 {/* Bank Balance Card */}
@@ -261,6 +286,23 @@ export function Funds() {
                         </button>
                     </div>
                     <p className="text-3xl font-bold text-blue-600">{formatCurrency(balance.bank_balance)}</p>
+                </div>
+
+                {/* Bank Statement Balance Card */}
+                <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-lg font-semibold text-gray-700">Bank Statement Balance</h3>
+                        <button 
+                            onClick={handleEditBankStatementBalance}
+                            className="text-gray-400 hover:text-blue-600 transition-colors"
+                            title="Edit Bank Statement Balance"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <p className="text-3xl font-bold text-purple-600">{formatCurrency(balance.bank_statement_balance)}</p>
                 </div>
             </div>
             
@@ -476,7 +518,16 @@ export function Funds() {
                 isOpen={isEditBankBalanceModalOpen}
                 onClose={handleCloseBankBalanceModal}
                 onSave={handleSaveBankBalance}
-                currentBalance={balance.bank_balance}
+                currentCashBalance={balance.cash_balance}
+                currentBankBalance={balance.bank_balance}
+            />
+
+            {/* Edit Bank Statement Balance Modal */}
+            <EditBankStatementBalanceModal
+                isOpen={isEditBankStatementBalanceModalOpen}
+                onClose={handleCloseBankStatementBalanceModal}
+                onSave={handleSaveBankStatementBalance}
+                currentBalance={balance.bank_statement_balance}
             />
 
             {/* Add/Edit Advance Modal */}
