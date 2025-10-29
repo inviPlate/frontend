@@ -184,20 +184,18 @@ export default function Overview() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Offertories Card */}
           <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div className="flex items-start justify-between p-6">
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-gray-600 mb-2">Offertories</h3>
-                <p className="text-3xl font-bold text-gray-900">{formatCurrency(totalOffertory)}</p>
-              </div>
-              <div className="w-32 h-20 ml-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Offertories</h3>
+              <p className="text-3xl font-bold text-gray-900 mb-4">{formatCurrency(totalOffertory)}</p>
+              <div className="w-full h-48">
                 {offertoryChart.amounts.length === 0 || offertoryChart.dates.length === 0 || offertoryChart.amounts.length !== offertoryChart.dates.length ? (
-                  <div className="h-full flex items-center justify-center text-gray-400 text-xs">
+                  <div className="h-full flex items-center justify-center text-gray-400 text-sm">
                     No data
                   </div>
                 ) : (
                   <LineChart
-                    width={128}
-                    height={80}
+                    width={400}
+                    height={192}
                     series={[
                       {
                         data: offertoryChart.amounts,
@@ -217,20 +215,18 @@ export default function Overview() {
 
           {/* Income vs Expenses Card */}
           <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div className="flex items-start justify-between p-6">
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-gray-600 mb-2">Income vs Expenses</h3>
-                <p className="text-3xl font-bold text-gray-900">{formatCurrency(totalIncome - totalExpenditures)}</p>
-              </div>
-              <div className="w-32 h-20 ml-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Income vs Expenses</h3>
+              <p className="text-3xl font-bold text-gray-900 mb-4">{formatCurrency(totalIncome - totalExpenditures)}</p>
+              <div className="w-full h-48">
                 {incomeVsExpenseChart.weeks.length === 0 || incomeVsExpenseChart.income.length === 0 || incomeVsExpenseChart.expense.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-gray-400 text-xs">
+                  <div className="h-full flex items-center justify-center text-gray-400 text-sm">
                     No data
                   </div>
                 ) : (
                   <LineChart
-                    width={128}
-                    height={80}
+                    width={400}
+                    height={192}
                     series={[
                       {
                         data: getMiniChartData(incomeVsExpenseChart.income),
@@ -254,22 +250,25 @@ export default function Overview() {
 
           {/* Balance Card */}
           <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div className="flex items-start justify-between p-6">
-              <div className="flex-1 pr-4">
-                <h3 className="text-sm font-medium text-gray-600 mb-2">Balance</h3>
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Balance</h3>
+              <div className="space-y-3">
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Current Balance</p>
-                  <p className={`text-3xl font-bold ${balanceData && balanceData.balance !== balanceData.bank_balance ? 'text-red-600' : 'text-gray-900'}`}>
-                    {balanceData ? formatCurrency(balanceData.balance) : '₹0'}
+                  <p className="text-xs text-gray-500 mb-1">Cash Balance</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {balanceData ? formatCurrency(balanceData.cash_balance || 0) : '₹0'}
                   </p>
                 </div>
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-gray-600 mb-2 opacity-0">Balance</h3>
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Bank Balance</p>
-                  <p className="text-3xl font-bold text-gray-900">
-                    {balanceData ? formatCurrency(balanceData.bank_balance) : '₹0'}
+                  <p className="text-3xl font-bold text-blue-600">
+                    {balanceData ? formatCurrency(balanceData.bank_balance || 0) : '₹0'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Bank Statement Balance</p>
+                  <p className="text-3xl font-bold text-purple-600">
+                    {balanceData ? formatCurrency(balanceData.bank_statement_balance || 0) : '₹0'}
                   </p>
                 </div>
               </div>
