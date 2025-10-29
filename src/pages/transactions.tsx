@@ -40,6 +40,7 @@ interface ExpenseData {
   head_id: number;
   year_head_id: number;
   reference: string;
+  mode_of_payment?: 'cash' | 'cheque' | 'upi';
   is_active: boolean;
   head: {
     id: number;
@@ -490,13 +491,14 @@ export default function Transactions() {
                   <th className="px-6 py-3">HEAD</th>
                   <th className="px-6 py-3">DESCRIPTION</th>
                   <th className="px-6 py-3">AMOUNT</th>
+                  <th className="px-6 py-3">MODE OF PAYMENT</th>
                   <th className="px-6 py-3">ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
                 {isLoadingTransactions ? (
                   <tr className="bg-white">
-                    <td colSpan={5} className="text-center text-gray-500 py-8">
+                    <td colSpan={6} className="text-center text-gray-500 py-8">
                       <div className="flex items-center justify-center space-x-2">
                         <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -508,7 +510,7 @@ export default function Transactions() {
                   </tr>
                 ) : transactionsData.length === 0 ? (
                   <tr className="bg-white hover:bg-gray-50">
-                    <td colSpan={5} className="text-center text-gray-500 py-8">
+                    <td colSpan={6} className="text-center text-gray-500 py-8">
                       No transactions data available for the selected year
                     </td>
                   </tr>
@@ -530,6 +532,9 @@ export default function Transactions() {
                         row.type === 'income' ? 'text-green-600' : 'text-red-600'
                       }`}>
                         {formatCurrency(row.amount)}
+                      </td>
+                      <td className="px-6 py-4 text-gray-900">
+                        {row.mode_of_payment ? row.mode_of_payment.charAt(0).toUpperCase() + row.mode_of_payment.slice(1) : '-'}
                       </td>
                       <td className="px-6 py-4">
                         <Button 
@@ -631,7 +636,8 @@ export default function Transactions() {
           date: editingTransaction.date,
           head_particulars: editingTransaction.head.particulars,
           type: editingTransaction.type,
-          year_id: getCurrentYearId() || 0
+          year_id: getCurrentYearId() || 0,
+          mode_of_payment: editingTransaction.mode_of_payment
         } : undefined}
       />
 

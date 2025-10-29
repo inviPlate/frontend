@@ -23,6 +23,7 @@ interface TransactionData {
   year_id: number;
   member_id?: number;
   head_particulars?: string;
+  mode_of_payment?: 'cash' | 'cheque' | 'upi';
 }
 
 interface HeadSuggestion {
@@ -39,7 +40,8 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
     amount: 0,
     date: new Date().toISOString().split('T')[0], // Today's date as default
     type: 'income',
-    year_id: yearId
+    year_id: yearId,
+    mode_of_payment: 'cash' // Default mode of payment
   });
 
   const [isSaving, setIsSaving] = useState(false);
@@ -89,7 +91,8 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
         date: formatDateForInput(editData.date),
         type: editData.type,
         year_id: editData.year_id,
-        member_id: editData.member_id
+        member_id: editData.member_id,
+        mode_of_payment: editData.mode_of_payment || 'cash'
       });
       
       // Set the selected head for display
@@ -110,7 +113,8 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
         amount: 0,
         date: new Date().toISOString().split('T')[0],
         type: 'income',
-        year_id: yearId
+        year_id: yearId,
+        mode_of_payment: 'cash'
       });
       setSelectedHead(null);
       setHeadQuery('');
@@ -118,7 +122,7 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
     }
   }, [editData, isOpen, yearId]);
 
-  const handleInputChange = (field: keyof TransactionData, value: string | number) => {
+  const handleInputChange = (field: keyof TransactionData, value: string | number | 'cash' | 'cheque' | 'upi') => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -216,7 +220,8 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
         date: formData.date,
         type: formData.type,
         year_id: formData.year_id,
-        member_id: formData.member_id
+        member_id: formData.member_id,
+        mode_of_payment: formData.mode_of_payment
       };
 
       let response;
@@ -238,7 +243,8 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
           amount: 0,
           date: new Date().toISOString().split('T')[0],
           type: 'income',
-          year_id: yearId
+          year_id: yearId,
+          mode_of_payment: 'cash'
         });
         setSelectedHead(null);
         setHeadQuery('');
@@ -296,6 +302,48 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
               <option value="income">Income</option>
               <option value="expense">Expense</option>
             </select>
+          </div>
+
+          {/* Mode of Payment */}
+          <div>
+            <label className="block mb-2 text-sm font-medium text-black">
+              Mode of Payment
+            </label>
+            <div className="flex items-center space-x-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="mode_of_payment"
+                  value="cash"
+                  checked={formData.mode_of_payment === 'cash'}
+                  onChange={(e) => handleInputChange('mode_of_payment', e.target.value as 'cash' | 'cheque' | 'upi')}
+                  className="mr-2 text-blue-600 focus:ring-blue-500"
+                />
+                Cash
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="mode_of_payment"
+                  value="cheque"
+                  checked={formData.mode_of_payment === 'cheque'}
+                  onChange={(e) => handleInputChange('mode_of_payment', e.target.value as 'cash' | 'cheque' | 'upi')}
+                  className="mr-2 text-blue-600 focus:ring-blue-500"
+                />
+                Cheque
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="mode_of_payment"
+                  value="upi"
+                  checked={formData.mode_of_payment === 'upi'}
+                  onChange={(e) => handleInputChange('mode_of_payment', e.target.value as 'cash' | 'cheque' | 'upi')}
+                  className="mr-2 text-blue-600 focus:ring-blue-500"
+                />
+                UPI
+              </label>
+            </div>
           </div>
 
           {/* Member Name (optional) */}
