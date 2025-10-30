@@ -472,15 +472,25 @@ export default function Transactions() {
           <div className="px-6 py-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900">Transactions</h2>
-              <Button 
-                size="sm" 
-                className="bg-blue-600 hover:bg-blue-700 rounded-full p-2"
-                onClick={() => setIsTransactionModalOpen(true)}
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-              </Button>
+              
+              <div className="flex items-center gap-2">
+                <Button 
+                  size="sm" 
+                  className="bg-blue-600 hover:bg-blue-700 rounded-full p-2"
+                  onClick={() => setIsTransactionModalOpen(true)}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                </Button>
+                <Button 
+                  size="sm" 
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1"
+                  onClick={() => {/* TODO: Handle Add Pastoral Support */}}
+                >
+                  Add Pastoral Support
+                </Button>
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto">

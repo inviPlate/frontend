@@ -97,8 +97,9 @@ export default function Overview() {
   const prepareBudgetChartData = () => {
     // Sort by budgeted amount, get top 10, then calculate spent and remaining
     const sortedBudgetData = [...budgetData]
+    .filter(item => item.child_of == null)
       .sort((a, b) => (b.budgeted || 0) - (a.budgeted || 0))
-      .slice(0, 10);
+      .slice(0, 20);
 
     return {
       categories: sortedBudgetData.map(item => {

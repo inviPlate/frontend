@@ -2,6 +2,7 @@ import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "flowbite-rea
 import { useState } from "react";
 import useAxios from "../context/useAxios";
 import { API_PATHS } from "../utils/apiPath";
+import { HeadAutocomplete } from "./HeadAutocomplete";
 
 interface AddBudgetHeadModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface BudgetHeadData {
   particulars: string;
   type: 'income' | 'expense';
   isActive: boolean;
+  child_of?: number;
 }
 
 export function AddBudgetHeadModal({ isOpen, onClose, onSave }: AddBudgetHeadModalProps) {
@@ -23,6 +25,7 @@ export function AddBudgetHeadModal({ isOpen, onClose, onSave }: AddBudgetHeadMod
     type: 'expense',
     isActive: true
   });
+  const [childOfValue, setChildOfValue] = useState<string>('');
   const [isSaving, setIsSaving] = useState(false);
   const axiosInstance = useAxios();
 
@@ -33,10 +36,29 @@ export function AddBudgetHeadModal({ isOpen, onClose, onSave }: AddBudgetHeadMod
     }));
   };
 
+  const handleHeadSelect = (head: { id: number; head: string; particulars: string; type: 'income' | 'expense' }) => {
+    setFormData(prev => ({
+      ...prev,
+      child_of: head.id
+    }));
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const response = await axiosInstance.post(API_PATHS.CREATE_BUDGET_HEAD, formData);
+      // Prepare payload - only include child_of if it's set
+      const payload: any = {
+        head: formData.head,
+        particulars: formData.particulars,
+        type: formData.type,
+        isActive: formData.isActive
+      };
+      
+      if (formData.child_of) {
+        payload.child_of = formData.child_of;
+      }
+      
+      const response = await axiosInstance.post(API_PATHS.CREATE_BUDGET_HEAD, payload);
       const savedData = response.data;
       
       // Pass saved data to parent component
@@ -49,6 +71,7 @@ export function AddBudgetHeadModal({ isOpen, onClose, onSave }: AddBudgetHeadMod
         type: 'expense',
         isActive: true
       });
+      setChildOfValue('');
       onClose();
     } catch (error) {
       console.error('Error saving budget head:', error);
@@ -66,6 +89,7 @@ export function AddBudgetHeadModal({ isOpen, onClose, onSave }: AddBudgetHeadMod
       type: 'expense',
       isActive: true
     });
+    setChildOfValue('');
     onClose();
   };
 
@@ -142,6 +166,27 @@ export function AddBudgetHeadModal({ isOpen, onClose, onSave }: AddBudgetHeadMod
               <option value="income">Income</option>
               <option value="expense">Expense</option>
             </select>
+          </div>
+
+          {/* Child Of Field */}
+          <div>
+            <HeadAutocomplete
+              value={childOfValue}
+              onChange={(value) => {
+                setChildOfValue(value);
+                // Clear child_of if input is cleared
+                if (!value.trim()) {
+                  setFormData(prev => ({
+                    ...prev,
+                    child_of: undefined
+                  }));
+                }
+              }}
+              onHeadSelect={handleHeadSelect}
+              placeholder="Search for parent head..."
+              label="Child Of"
+              type="all"
+            />
           </div>
 
           {/* Active Status */}
