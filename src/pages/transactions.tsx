@@ -6,6 +6,7 @@ import useAxios from '../context/useAxios';
 import { API_PATHS } from '../utils/apiPath';
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { OffertoryModal } from '../components/OffertoryModal';
+import { PastoralSupportModal } from '../components/PastoralSupportModal';
 
 interface OffertoryData {
   id: number;
@@ -100,6 +101,7 @@ export default function Transactions() {
   // Transaction modal state
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<ExpenseData | null>(null);
+  const [isPastoralModalOpen, setIsPastoralModalOpen] = useState(false);
   
   // Offertory modal state
   const [isOffertoryModalOpen, setIsOffertoryModalOpen] = useState(false);
@@ -486,7 +488,7 @@ export default function Transactions() {
                 <Button 
                   size="sm" 
                   className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1"
-                  onClick={() => {/* TODO: Handle Add Pastoral Support */}}
+                  onClick={() => setIsPastoralModalOpen(true)}
                 >
                   Add Pastoral Support
                 </Button>
@@ -649,6 +651,16 @@ export default function Transactions() {
           year_id: getCurrentYearId() || 0,
           mode_of_payment: editingTransaction.mode_of_payment
         } : undefined}
+      />
+
+      {/* Add Pastoral Support Modal */}
+      <PastoralSupportModal
+        isOpen={isPastoralModalOpen}
+        onClose={() => setIsPastoralModalOpen(false)}
+        onSubmitted={() => {
+          fetchTransactionsData(transactionsPage);
+        }}
+        yearId={getCurrentYearId() || 0}
       />
 
       {/* Edit Offertory Modal */}
