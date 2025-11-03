@@ -20,12 +20,15 @@ export default function Overview() {
         setOffertoryData(offertoryResponse.data?.data || []);
 
         // Fetch transaction data
-        const transactionResponse = await axiosInstance.get(`${API_PATHS.TRANSACTIONS}?page=1&pageSize=100`);
+        const transactionResponse = await axiosInstance.get(`${API_PATHS.TRANSACTIONS}?page=1&pageSize=500`);
         setTransactionData(transactionResponse.data?.data || []);
 
         // Fetch budget data (expenses)
         const budgetResponse = await axiosInstance.get(`${API_PATHS.GET_BUDGET('expense', 1, 100)}&year_id=1`);
-        setBudgetData(budgetResponse.data?.data || []);
+        const fullBudgetData = budgetResponse.data?.data || [];
+        // Extract only parent budgets from index 0 (children are in other indices)
+        const parentBudgets = Array.isArray(fullBudgetData) && fullBudgetData[0]?.budgets ? fullBudgetData[0].budgets : [];
+        setBudgetData(parentBudgets);
 
         // Fetch balance data
         const balanceResponse = await axiosInstance.get(API_PATHS.GET_BALANCE);
@@ -44,7 +47,7 @@ export default function Overview() {
     // Sort by date and take the last 7 entries for the mini chart
     const sortedData = [...offertoryData]
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-7);
+      .slice(-12);
 
     return {
       dates: sortedData.map(item => {
@@ -55,49 +58,48 @@ export default function Overview() {
     };
   };
 
-  const getWeekLabel = (date: Date) => {
-    const year = date.getFullYear();
-    const startOfYear = new Date(year, 0, 1);
-    const pastDaysOfYear = (date.getTime() - startOfYear.getTime()) / 86400000;
-    const weekNumber = Math.ceil((pastDaysOfYear + startOfYear.getDay() + 1) / 7);
-    return `Week ${weekNumber}`;
+  const getMonthLabel = (date: Date) => {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return monthNames[date.getMonth()];
   };
 
   const prepareIncomeVsExpenseChartData = () => {
-    const weeklyData = transactionData.reduce((acc: any, item: any) => {
+    const monthlyData = transactionData.reduce((acc: any, item: any) => {
       const date = new Date(item.date);
-      const weekLabel = getWeekLabel(date);
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = getMonthLabel(date);
       
-      if (!acc[weekLabel]) {
-        acc[weekLabel] = { weekLabel, income: 0, expense: 0 };
+      if (!acc[monthYear]) {
+        acc[monthYear] = { monthYear, monthLabel, income: 0, expense: 0, sortKey: date.getFullYear() * 12 + date.getMonth() };
       }
       
       if (item.type === 'income') {
-        acc[weekLabel].income += (item.amount || 0);
+        acc[monthYear].income += (item.amount || 0);
       } else if (item.type === 'expense') {
-        acc[weekLabel].expense += (item.amount || 0);
+        acc[monthYear].expense += (item.amount || 0);
       }
       
       return acc;
     }, {});
 
-    const sortedWeeks = Object.values(weeklyData).sort((a: any, b: any) => {
-      const dateA = new Date(a.weekLabel.split(' ')[1]);
-      const dateB = new Date(b.weekLabel.split(' ')[1]);
-      return dateA.getTime() - dateB.getTime();
+    // Get all months that have data and find the date range
+    const sortedMonths = Object.values(monthlyData).sort((a: any, b: any) => {
+      return a.sortKey - b.sortKey;
     });
 
+    // If we have data, show all months from first to last (no limit)
     return {
-      weeks: sortedWeeks.map((d: any) => d.weekLabel),
-      income: sortedWeeks.map((d: any) => d.income),
-      expense: sortedWeeks.map((d: any) => d.expense)
+      months: sortedMonths.map((d: any) => d.monthLabel),
+      income: sortedMonths.map((d: any) => d.income),
+      expense: sortedMonths.map((d: any) => d.expense)
     };
   };
 
   const prepareBudgetChartData = () => {
-    // Sort by budgeted amount, get top 10, then calculate spent and remaining
+    // Filter out any items with child_of (safety check, though we should only have parents)
+    // Sort by budgeted amount, get top 20, then calculate spent and remaining
     const sortedBudgetData = [...budgetData]
-    .filter(item => item.child_of == null)
+      .filter(item => item && item.child_of == null)
       .sort((a, b) => (b.budgeted || 0) - (a.budgeted || 0))
       .slice(0, 20);
 
@@ -113,19 +115,25 @@ export default function Overview() {
   };
 
   const prepareTransactionByHeadData = () => {
-    // Group ALL transactions by head and sum the amounts
-    const headData = transactionData.reduce((acc: any, transaction: any) => {
-      const headName = transaction.head?.particulars || transaction.head?.head || 'Other';
-      if (!acc[headName]) {
-        acc[headName] = 0;
-      }
-      acc[headName] += Math.abs(transaction.amount || 0);
-      return acc;
-    }, {});
+    // Group transactions by head and sum the amounts, only include transactions where child_of is null
+    const headData = transactionData
+      .filter((transaction: any) => {
+        // Only include transactions where child_of is null or undefined
+        return transaction.child_of == null;
+      })
+      .reduce((acc: any, transaction: any) => {
+        const headName = transaction.head?.particulars || transaction.head?.head || 'Other';
+        if (!acc[headName]) {
+          acc[headName] = 0;
+        }
+        acc[headName] += Math.abs(transaction.amount || 0);
+        return acc;
+      }, {});
 
-    // Convert to array and sort by amount descending
+    // Convert to array and sort by amount descending, then take top 10
     const sortedHeads = Object.entries(headData)
-      .sort((a: any, b: any) => b[1] - a[1]);
+      .sort((a: any, b: any) => b[1] - a[1])
+      .slice(0, 10);
 
     // Generate colors dynamically based on number of categories
     const colors = [
@@ -155,11 +163,6 @@ export default function Overview() {
   const incomeVsExpenseChart = prepareIncomeVsExpenseChartData();
   const budgetChart = prepareBudgetChartData();
   const transactionByHeadChart = prepareTransactionByHeadData();
-  
-  // Prepare mini chart data with recent trend data
-  const getMiniChartData = (data: number[]) => {
-    return data.slice(-7); // Last 7 data points
-  };
 
   // Calculate totals
   const totalOffertory = offertoryData.reduce((sum, item) => sum + (item.total_amount || 0), 0);
@@ -219,31 +222,34 @@ export default function Overview() {
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Income vs Expenses</h3>
               <p className="text-3xl font-bold text-gray-900 mb-4">{formatCurrency(totalIncome - totalExpenditures)}</p>
-              <div className="w-full h-48">
-                {incomeVsExpenseChart.weeks.length === 0 || incomeVsExpenseChart.income.length === 0 || incomeVsExpenseChart.expense.length === 0 ? (
+              <div className="w-full h-48 overflow-x-auto">
+                {incomeVsExpenseChart.months.length === 0 || incomeVsExpenseChart.income.length === 0 || incomeVsExpenseChart.expense.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-gray-400 text-sm">
                     No data
                   </div>
                 ) : (
-                  <LineChart
-                    width={400}
-                    height={192}
-                    series={[
-                      {
-                        data: getMiniChartData(incomeVsExpenseChart.income),
-                        color: '#10B981',
-                        area: true,
-                      },
-                      {
-                        data: getMiniChartData(incomeVsExpenseChart.expense),
-                        color: '#EF4444',
-                        area: true,
-                      }
-                    ]}
-                    grid={{ vertical: false, horizontal: false }}
-                    yAxis={[]}
-                    margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
-                  />
+                  <div style={{ minWidth: `${Math.max(600, incomeVsExpenseChart.months.length * 50)}px` }}>
+                    <LineChart
+                      width={Math.max(600, incomeVsExpenseChart.months.length * 50)}
+                      height={192}
+                      series={[
+                        {
+                          data: incomeVsExpenseChart.income,
+                          color: '#10B981',
+                          area: true,
+                        },
+                        {
+                          data: incomeVsExpenseChart.expense,
+                          color: '#EF4444',
+                          area: true,
+                        }
+                      ]}
+                      xAxis={[{ data: incomeVsExpenseChart.months, scaleType: 'point' }]}
+                      grid={{ vertical: false, horizontal: false }}
+                      yAxis={[]}
+                      margin={{ left: 20, right: 20, top: 0, bottom: 30 }}
+                    />
+                  </div>
                 )}
               </div>
             </div>

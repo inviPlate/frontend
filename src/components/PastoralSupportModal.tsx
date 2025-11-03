@@ -81,9 +81,11 @@ export function PastoralSupportModal({ isOpen, onClose, onSubmitted, yearId }: P
     const fetchBudget = async () => {
       if (!isOpen || !yearId) return;
       try {
-        const url = `${API_PATHS.GET_BUDGET('expense', 1, 1000)}&year_id=${yearId}`;
+        const url = `${API_PATHS.GET_BUDGET('expense', 1, 1000)}&year_id=${yearId}&child_of=198`;
         const res = await axiosInstance.get(url);
-        const data = res.data?.data || [];
+        const fullData = res.data?.data || [];
+        // Extract only parent budgets from index 0 (children are in other indices)
+        const data = Array.isArray(fullData) && fullData[0]?.budgets ? fullData[0].budgets : [];
 
         const headIdToMonthly: Record<number, number> = {};
         for (const item of data) {

@@ -137,8 +137,58 @@ export function OffertoryModal({ isOpen, onClose, onSave, editData }: OffertoryM
     // Small delay to allow suggestion click to register first
     setTimeout(() => {
       setShowTitheSuggestions(null);
-    }, 100);
+    }, 200);
   };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showTitheSuggestions !== null) {
+        const target = event.target as HTMLElement;
+        
+        // Check if click is on or inside a text input
+        let isTextInputOrInside = false;
+        let currentElement: HTMLElement | null = target;
+        while (currentElement && currentElement !== document.body) {
+          if (currentElement.tagName === 'INPUT' && currentElement.getAttribute('type') === 'text') {
+            isTextInputOrInside = true;
+            break;
+          }
+          currentElement = currentElement.parentElement;
+        }
+        
+        // Check if click is inside the suggestions dropdown
+        let isInsideDropdown = false;
+        currentElement = target;
+        while (currentElement && currentElement !== document.body) {
+          // Check for suggestion dropdown container (has max-h-60 class)
+          if (currentElement.classList.contains('max-h-60')) {
+            isInsideDropdown = true;
+            break;
+          }
+          currentElement = currentElement.parentElement;
+        }
+        
+        // If click is not on text input and not inside dropdown, close suggestions
+        if (!isTextInputOrInside && !isInsideDropdown) {
+          setShowTitheSuggestions(null);
+          setTitheNameSuggestions([]);
+        }
+      }
+    };
+
+    if (showTitheSuggestions !== null) {
+      // Use a small delay to allow clicks on suggestions to register first
+      const timeoutId = setTimeout(() => {
+        document.addEventListener('mousedown', handleClickOutside);
+      }, 150);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showTitheSuggestions]);
 
   // Check if a name doesn't match any suggestions
   const isNameNotInSuggestions = (name: string, index: number): boolean => {
