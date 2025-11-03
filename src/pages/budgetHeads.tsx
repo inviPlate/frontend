@@ -1,6 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, Button } from "flowbite-react";
 import { useState, useEffect } from "react";
-import { AddBudgetHeadModal } from "../components/addBudgetHeadModal";
+import { AddBudgetHeadModal } from "../components/AddBudgetHeadModal";
 import useAxios from "../context/useAxios";
 import { API_PATHS } from "../utils/apiPath";
 
