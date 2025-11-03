@@ -3,7 +3,7 @@ const API_BASE_URL = '';
 export const API_PATHS = {
   // Budget Management
   CREATE_BUDGET_HEAD: `/add-budget-head`,
-  BUDGET_HEADS: `get-heads`,
+  BUDGET_HEADS: `add-budget-head`,
   BUDGET_HEAD: (id: string) => `${API_BASE_URL}/budget-heads/${id}`,
   CREATE_BUDGET: `/add-budget`,
   UPDATE_BUDGET: `/add-budget`,
@@ -16,7 +16,7 @@ export const API_PATHS = {
   BUDGET_YEAR: (year: string) => `${API_BASE_URL}/budget/year/${year}`,
   
   // Transactions
-  TRANSACTIONS: `/get-transactions`,
+  TRANSACTIONS: `/add-transaction`,
   ADD_TRANSACTIONS: `/add-transaction`,
   UPDATE_TRANSACTION: `/add-transaction`,
   
@@ -40,11 +40,11 @@ export const API_PATHS = {
   // Offertory
   CREATE_OFFERTORY: `${API_BASE_URL}/add-offertory`,
   UPDATE_OFFERTORY: `${API_BASE_URL}/add-offertory`,
-  GET_OFFERTORY: `${API_BASE_URL}/get-offertory`,
+  GET_OFFERTORY: `${API_BASE_URL}/add-offertory`,
   GET_TITHE_NAMES: `${API_BASE_URL}/get-tithe`,
   
   // Members
-  MEMBERS: `/get-members`,
+  MEMBERS: `/add-member`,
   ADD_MEMBER: '/add-member',
   MEMBER: (id: string) => `${API_BASE_URL}/members/${id}`,
   
