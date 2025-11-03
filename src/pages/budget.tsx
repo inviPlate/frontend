@@ -1,5 +1,6 @@
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, Button, TextInput } from "flowbite-react";
 import { useState, useEffect, useCallback } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import { AddBudgetHeadModal } from "../components/addBudgetModal";
 import { AddYearModal } from "../components/AddYearModal";
 import YearSelector from "../components/YearSelector";
@@ -54,7 +55,7 @@ export default function Budget() {
 
   // Budget data state
   const [incomeData, setIncomeData] = useState<BudgetData[]>([]);
-  const [expenseData, setExpenseData] = useState<BudgetData[]>([]);
+  const [, setExpenseData] = useState<BudgetData[]>([]);
   const [expenseGroupedData, setExpenseGroupedData] = useState<Array<{ parent: BudgetData; children: BudgetData[] }>>([]);
   const [expandedParents, setExpandedParents] = useState<Set<number>>(new Set());
   const [isLoadingIncome, setIsLoadingIncome] = useState(false);
@@ -149,12 +150,12 @@ export default function Budget() {
     const yearId = getCurrentYearId();
     if (!yearId) return;
 
-    const setIsLoading = type === 'income' ? setIsLoadingIncome : setIsLoadingExpense;
-    const setData = type === 'income' ? setIncomeData : setExpenseData;
-    const setTotal = type === 'income' ? setIncomeTotal : setExpenseTotal;
-    const setTotalPages = type === 'income' ? setIncomeTotalPages : setExpenseTotalPages;
-    const setHasNext = type === 'income' ? setIncomeHasNext : setExpenseHasNext;
-    const setHasPrev = type === 'income' ? setIncomeHasPrev : setExpenseHasPrev;
+    const setIsLoading: Dispatch<SetStateAction<boolean>> = (type === 'income' ? setIsLoadingIncome : setIsLoadingExpense) as Dispatch<SetStateAction<boolean>>;
+    const setData: Dispatch<SetStateAction<BudgetData[]>> = (type === 'income' ? setIncomeData : setExpenseData) as Dispatch<SetStateAction<BudgetData[]>>;
+    const setTotal: Dispatch<SetStateAction<number>> = (type === 'income' ? setIncomeTotal : setExpenseTotal) as Dispatch<SetStateAction<number>>;
+    const setTotalPages: Dispatch<SetStateAction<number>> = (type === 'income' ? setIncomeTotalPages : setExpenseTotalPages) as Dispatch<SetStateAction<number>>;
+    const setHasNext: Dispatch<SetStateAction<boolean>> = (type === 'income' ? setIncomeHasNext : setExpenseHasNext) as Dispatch<SetStateAction<boolean>>;
+    const setHasPrev: Dispatch<SetStateAction<boolean>> = (type === 'income' ? setIncomeHasPrev : setExpenseHasPrev) as Dispatch<SetStateAction<boolean>>;
 
     setIsLoading(true);
     try {
@@ -533,7 +534,7 @@ export default function Budget() {
               const maxVisiblePages = 5;
               
               let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-              let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+              const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
               
               if (endPage - startPage + 1 < maxVisiblePages) {
                 startPage = Math.max(1, endPage - maxVisiblePages + 1);
@@ -773,7 +774,7 @@ export default function Budget() {
               const maxVisiblePages = 5;
               
               let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
-              let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+              const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
               
               if (endPage - startPage + 1 < maxVisiblePages) {
                 startPage = Math.max(1, endPage - maxVisiblePages + 1);
