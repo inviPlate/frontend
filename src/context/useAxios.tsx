@@ -1,10 +1,10 @@
 import axios from 'axios';
 import { useEffect, useMemo } from 'react';
-import { useAuthContext } from './AuthContext';
+import { useAuth } from '@clerk/clerk-react';
 // import { faro } from '../utils/faroConfig';
 
 const useAxios = () => {
-  const { jwt, refreshJwt } = useAuthContext();
+  const { getToken } = useAuth();
   
   // Create axios instance inside the hook
   const axiosInstance = useMemo(() => {
@@ -18,9 +18,10 @@ const useAxios = () => {
   useEffect(() => {
     const requestInterceptor = axiosInstance.interceptors.request.use(
       async (config) => {
-        if (jwt) {
+        const directJWT = await getToken({ template: 'inviplate' });
+        if (directJWT) {
           config.headers = config.headers || {};
-          config.headers.Authorization = `Bearer ${jwt}`;
+          config.headers.Authorization = `Bearer ${directJWT}`;
         }
         
         // Add Faro trace ID to headers
@@ -54,7 +55,7 @@ const useAxios = () => {
           console.log('Received 401 error, attempting to refresh JWT');
           
           try {
-            const newJwt = await refreshJwt();
+            const newJwt = await getToken({ template: 'inviplate' });
             if (newJwt) {
               console.log('JWT refreshed successfully, retrying request');
               // Update the Authorization header with the new token
@@ -80,7 +81,7 @@ const useAxios = () => {
       axiosInstance.interceptors.request.eject(requestInterceptor);
       axiosInstance.interceptors.response.eject(responseInterceptor);
     };
-  }, [jwt, axiosInstance, refreshJwt]);
+  }, [axiosInstance, getToken]);
 
   return axiosInstance;
 }
