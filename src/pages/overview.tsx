@@ -8,35 +8,59 @@ export default function Overview() {
   const [transactionData, setTransactionData] = useState<any[]>([]);
   const [budgetData, setBudgetData] = useState<any[]>([]);
   const [balanceData, setBalanceData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingOffertory, setIsLoadingOffertory] = useState(false);
+  const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
+  const [isLoadingBudget, setIsLoadingBudget] = useState(false);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const axiosInstance = useAxios();
 
   useEffect(() => {
     const fetchData = async () => {
-      setIsLoading(true);
+      // Fetch offertory data
+      setIsLoadingOffertory(true);
       try {
-        // Fetch offertory data
         const offertoryResponse = await axiosInstance.get(`${API_PATHS.GET_OFFERTORY}?page=1&pageSize=100`);
         setOffertoryData(offertoryResponse.data?.data || []);
+      } catch (error) {
+        console.error('Error fetching offertory data:', error);
+      } finally {
+        setIsLoadingOffertory(false);
+      }
 
-        // Fetch transaction data
+      // Fetch transaction data
+      setIsLoadingTransactions(true);
+      try {
         const transactionResponse = await axiosInstance.get(`${API_PATHS.TRANSACTIONS}?page=1&pageSize=500`);
         setTransactionData(transactionResponse.data?.data || []);
+      } catch (error) {
+        console.error('Error fetching transaction data:', error);
+      } finally {
+        setIsLoadingTransactions(false);
+      }
 
-        // Fetch budget data (expenses)
+      // Fetch budget data (expenses)
+      setIsLoadingBudget(true);
+      try {
         const budgetResponse = await axiosInstance.get(`${API_PATHS.GET_BUDGET('expense', 1, 100)}&year_id=1`);
         const fullBudgetData = budgetResponse.data?.data || [];
         // Extract only parent budgets from index 0 (children are in other indices)
         const parentBudgets = Array.isArray(fullBudgetData) && fullBudgetData[0]?.budgets ? fullBudgetData[0].budgets : [];
         setBudgetData(parentBudgets);
+      } catch (error) {
+        console.error('Error fetching budget data:', error);
+      } finally {
+        setIsLoadingBudget(false);
+      }
 
-        // Fetch balance data
+      // Fetch balance data
+      setIsLoadingBalance(true);
+      try {
         const balanceResponse = await axiosInstance.get(API_PATHS.GET_BALANCE);
         setBalanceData(balanceResponse.data?.data || { balance: 0, bank_balance: 0 });
       } catch (error) {
-        console.error('Error fetching overview data:', error);
+        console.error('Error fetching balance data:', error);
       } finally {
-        setIsLoading(false);
+        setIsLoadingBalance(false);
       }
     };
 
@@ -177,88 +201,110 @@ export default function Overview() {
     <div className="p-6">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Overview</h1>
 
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Offertories Card */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Offertories</h3>
-              <p className="text-3xl font-bold text-gray-900 mb-4">{formatCurrency(totalOffertory)}</p>
-              <div className="w-full h-48">
-                {offertoryChart.amounts.length === 0 || offertoryChart.dates.length === 0 || offertoryChart.amounts.length !== offertoryChart.dates.length ? (
-                  <div className="h-full flex items-center justify-center text-gray-400 text-sm">
-                    No data
-                  </div>
-                ) : (
-                  <LineChart
-                    width={400}
-                    height={192}
-                    series={[
-                      {
-                        data: offertoryChart.amounts,
-                        color: '#3B82F6',
-                        area: true,
-                      }
-                    ]}
-                    xAxis={[{ data: offertoryChart.dates, scaleType: 'point' }]}
-                    grid={{ vertical: false, horizontal: false }}
-                    yAxis={[]}
-                    margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
-                  />
-                )}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Offertories Card */}
+        <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Offertories</h3>
+            {isLoadingOffertory ? (
+              <div className="flex items-center justify-center h-64">
+                <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
               </div>
-            </div>
-          </div>
-
-          {/* Income vs Expenses Card */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Income vs Expenses</h3>
-              <p className="text-3xl font-bold text-gray-900 mb-4">{formatCurrency(totalIncome - totalExpenditures)}</p>
-              <div className="w-full h-48 overflow-x-auto">
-                {incomeVsExpenseChart.months.length === 0 || incomeVsExpenseChart.income.length === 0 || incomeVsExpenseChart.expense.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-gray-400 text-sm">
-                    No data
-                  </div>
-                ) : (
-                  <div style={{ minWidth: `${Math.max(600, incomeVsExpenseChart.months.length * 50)}px` }}>
+            ) : (
+              <>
+                <p className="text-3xl font-bold text-gray-900 mb-4">{formatCurrency(totalOffertory)}</p>
+                <div className="w-full h-48">
+                  {offertoryChart.amounts.length === 0 || offertoryChart.dates.length === 0 || offertoryChart.amounts.length !== offertoryChart.dates.length ? (
+                    <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                      No data
+                    </div>
+                  ) : (
                     <LineChart
-                      width={Math.max(600, incomeVsExpenseChart.months.length * 50)}
+                      width={400}
                       height={192}
                       series={[
                         {
-                          data: incomeVsExpenseChart.income,
-                          color: '#10B981',
-                          area: true,
-                        },
-                        {
-                          data: incomeVsExpenseChart.expense,
-                          color: '#EF4444',
+                          data: offertoryChart.amounts,
+                          color: '#3B82F6',
                           area: true,
                         }
                       ]}
-                      xAxis={[{ data: incomeVsExpenseChart.months, scaleType: 'point' }]}
+                      xAxis={[{ data: offertoryChart.dates, scaleType: 'point' }]}
                       grid={{ vertical: false, horizontal: false }}
                       yAxis={[]}
-                      margin={{ left: 20, right: 20, top: 0, bottom: 30 }}
+                      margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
                     />
-                  </div>
-                )}
-              </div>
-            </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
+        </div>
 
-          {/* Balance Card */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Balance</h3>
+        {/* Income vs Expenses Card */}
+        <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Income vs Expenses</h3>
+            {isLoadingTransactions ? (
+              <div className="flex items-center justify-center h-64">
+                <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+            ) : (
+              <>
+                <p className="text-3xl font-bold text-gray-900 mb-4">{formatCurrency(totalIncome - totalExpenditures)}</p>
+                <div className="w-full h-48 overflow-x-auto">
+                  {incomeVsExpenseChart.months.length === 0 || incomeVsExpenseChart.income.length === 0 || incomeVsExpenseChart.expense.length === 0 ? (
+                    <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+                      No data
+                    </div>
+                  ) : (
+                    <div style={{ minWidth: `${Math.max(600, incomeVsExpenseChart.months.length * 50)}px` }}>
+                      <LineChart
+                        width={Math.max(600, incomeVsExpenseChart.months.length * 50)}
+                        height={192}
+                        series={[
+                          {
+                            data: incomeVsExpenseChart.income,
+                            color: '#10B981',
+                            area: true,
+                          },
+                          {
+                            data: incomeVsExpenseChart.expense,
+                            color: '#EF4444',
+                            area: true,
+                          }
+                        ]}
+                        xAxis={[{ data: incomeVsExpenseChart.months, scaleType: 'point' }]}
+                        grid={{ vertical: false, horizontal: false }}
+                        yAxis={[]}
+                        margin={{ left: 20, right: 20, top: 0, bottom: 30 }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Balance Card */}
+        <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Balance</h3>
+            {isLoadingBalance ? (
+              <div className="flex items-center justify-center h-64">
+                <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+            ) : (
               <div className="space-y-3">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Cash Balance</p>
@@ -279,83 +325,95 @@ export default function Overview() {
                   </p>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Second Row - Budget Chart */}
-      {!isLoading && (
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Budget Head/Category Spend vs Remaining */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden lg:col-span-2">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Budget Status</h3>
-              {budgetChart.categories.length === 0 ? (
-                <div className="h-64 flex items-center justify-center text-gray-500">
-                  No budget data available
-                </div>
-              ) : (
-                <div className="h-64">
-                  <BarChart
-                    series={[
-                      {
-                        data: budgetChart.spent,
-                        label: 'Spent',
-                        color: '#EF4444',
-                        stack: 'total'
-                      },
-                      {
-                        data: budgetChart.remaining,
-                        label: 'Remaining',
-                        color: '#10B981',
-                        stack: 'total'
-                      }
-                    ]}
-                    xAxis={[{ data: budgetChart.categories, scaleType: 'band' }]}
-                    grid={{ vertical: true, horizontal: true }}
-                    margin={{ left: 80, right: 30, top: 30, bottom: 100 }}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Transactions by Head Pie Chart */}
-          <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Transactions by Head</h3>
-              {transactionByHeadChart.values.length === 0 ? (
-                <div className="h-64 flex items-center justify-center text-gray-500">
-                  No transaction data available
-                </div>
-              ) : (
-                <div className="h-64">
-                  <PieChart
-                    series={[
-                      {
-                        data: transactionByHeadChart.labels.map((label, index) => ({
-                          id: index,
-                          value: Number(transactionByHeadChart.values[index]) || 0,
-                          label: label,
-                          color: transactionByHeadChart.colors[index]
-                        })),
-                        innerRadius: 30,
-                        outerRadius: 100,
-                        paddingAngle: 2,
-                        cornerRadius: 5
-                      }
-                    ]}
-                    margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
-                    width={350}
-                    height={250}
-                  />
-                </div>
-              )}
-            </div>
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Budget Head/Category Spend vs Remaining */}
+        <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden lg:col-span-2">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Budget Status</h3>
+            {isLoadingBudget ? (
+              <div className="h-64 flex items-center justify-center">
+                <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+            ) : budgetChart.categories.length === 0 ? (
+              <div className="h-64 flex items-center justify-center text-gray-500">
+                No budget data available
+              </div>
+            ) : (
+              <div className="h-64">
+                <BarChart
+                  series={[
+                    {
+                      data: budgetChart.spent,
+                      label: 'Spent',
+                      color: '#EF4444',
+                      stack: 'total'
+                    },
+                    {
+                      data: budgetChart.remaining,
+                      label: 'Remaining',
+                      color: '#10B981',
+                      stack: 'total'
+                    }
+                  ]}
+                  xAxis={[{ data: budgetChart.categories, scaleType: 'band' }]}
+                  grid={{ vertical: true, horizontal: true }}
+                  margin={{ left: 80, right: 30, top: 30, bottom: 100 }}
+                />
+              </div>
+            )}
           </div>
         </div>
-      )}
+
+        {/* Transactions by Head Pie Chart */}
+        <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Transactions by Head</h3>
+            {isLoadingTransactions ? (
+              <div className="h-64 flex items-center justify-center">
+                <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+            ) : transactionByHeadChart.values.length === 0 ? (
+              <div className="h-64 flex items-center justify-center text-gray-500">
+                No transaction data available
+              </div>
+            ) : (
+              <div className="h-64">
+                <PieChart
+                  series={[
+                    {
+                      data: transactionByHeadChart.labels.map((label, index) => ({
+                        id: index,
+                        value: Number(transactionByHeadChart.values[index]) || 0,
+                        label: label,
+                        color: transactionByHeadChart.colors[index]
+                      })),
+                      innerRadius: 30,
+                      outerRadius: 100,
+                      paddingAngle: 2,
+                      cornerRadius: 5
+                    }
+                  ]}
+                  margin={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                  width={350}
+                  height={250}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
