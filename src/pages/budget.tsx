@@ -56,13 +56,27 @@ export default function Budget() {
   // Budget data state
   const [incomeData, setIncomeData] = useState<BudgetData[]>([]);
   const [, setExpenseData] = useState<BudgetData[]>([]);
+  const [incomeGroupedData, setIncomeGroupedData] = useState<Array<{ parent: BudgetData; children: BudgetData[] }>>([]);
   const [expenseGroupedData, setExpenseGroupedData] = useState<Array<{ parent: BudgetData; children: BudgetData[] }>>([]);
+  const [expandedIncomeParents, setExpandedIncomeParents] = useState<Set<number>>(new Set());
   const [expandedParents, setExpandedParents] = useState<Set<number>>(new Set());
   const [isLoadingIncome, setIsLoadingIncome] = useState(false);
   const [isLoadingExpense, setIsLoadingExpense] = useState(false);
 
   const toggleParent = (parentId: number) => {
     setExpandedParents(prev => {
+      const next = new Set(prev);
+      if (next.has(parentId)) {
+        next.delete(parentId);
+      } else {
+        next.add(parentId);
+      }
+      return next;
+    });
+  };
+
+  const toggleIncomeParent = (parentId: number) => {
+    setExpandedIncomeParents(prev => {
       const next = new Set(prev);
       if (next.has(parentId)) {
         next.delete(parentId);
@@ -99,7 +113,8 @@ export default function Budget() {
   // Clear expanded parents when year or page changes
   useEffect(() => {
     setExpandedParents(new Set());
-  }, [selectedYear, expensePage]);
+    setExpandedIncomeParents(new Set());
+  }, [selectedYear, expensePage, incomePage]);
 
   // Get the current year ID from the selected year
   const getCurrentYearId = () => {
@@ -171,9 +186,59 @@ export default function Budget() {
       let responseData: BudgetData[] = [];
       
       if(type === 'income') {
-        // For income, data structure is [{ budgets: [...] }]
-        // Extract budgets from the first element
-        responseData = Array.isArray(fullResponseData) && fullResponseData[0]?.budgets ? fullResponseData[0].budgets : [];
+        // For income, index 0 contains parents, others contain children
+        // Extract parents from index 0
+        const parentGroup = fullResponseData[0];
+        const parentItems = parentGroup?.budgets || [];
+        
+        // Extract child groups (indices 1+)
+        const childGroups = fullResponseData.slice(1);
+        
+        // Filter parents by year
+        const filteredParents = parentItems.filter((item: any) => {
+          if (!item || typeof item !== 'object') return false;
+          if (item.year_id && item.year_id !== yearId) return false;
+          return true;
+        });
+        
+        // Organize into parent-child structure
+        const grouped: Array<{ parent: BudgetData; children: BudgetData[] }> = [];
+        
+        filteredParents.forEach((parent: any) => {
+          // Find child group where child_of matches parent's id or head_id
+          const childGroup = childGroups.find((cg: any) => cg.child_of === parent.id || cg.child_of === parent.head_id);
+          const children = (childGroup?.budgets || []).filter((item: any) => {
+            if (!item || typeof item !== 'object') return false;
+            if (item.year_id && item.year_id !== yearId) return false;
+            return true;
+          });
+          
+          grouped.push({
+            parent: {
+              id: parent.id,
+              head: parent.head,
+              particular: parent.particular,
+              budgeted: parent.budgeted,
+              actuals: parent.actuals,
+              status: parent.status,
+              head_id: parent.head_id,
+              year_id: parent.year_id
+            },
+            children: children.map((child: any) => ({
+              id: child.id,
+              head: child.head,
+              particular: child.particular,
+              budgeted: child.budgeted,
+              actuals: child.actuals,
+              status: child.status,
+              head_id: child.head_id,
+              year_id: child.year_id
+            }))
+          });
+        });
+        
+        setIncomeGroupedData(grouped);
+        responseData = filteredParents;
       } else if(type === 'expense') {
         // For expense, index 0 contains parents, others contain children
         // Extract parents from index 0
@@ -259,6 +324,8 @@ export default function Budget() {
         setHasPrev(false);
         if (type === 'expense') {
           setExpenseGroupedData([]);
+        } else if (type === 'income') {
+          setIncomeGroupedData([]);
         }
       }
     } catch (error) {
@@ -270,6 +337,8 @@ export default function Budget() {
       setHasPrev(false);
       if (type === 'expense') {
         setExpenseGroupedData([]);
+      } else if (type === 'income') {
+        setIncomeGroupedData([]);
       }
     } finally {
       setIsLoading(false);
@@ -435,80 +504,148 @@ export default function Budget() {
         </div>
 
         <div className="overflow-x-auto">
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableHeadCell className="bg-white text-center">HEAD</TableHeadCell>
-                <TableHeadCell className="bg-white text-center">PARTICULARS</TableHeadCell>
-                <TableHeadCell className="bg-white text-center">BUDGETED</TableHeadCell>
-                <TableHeadCell className="bg-white text-center">ACTUALS</TableHeadCell>
-                <TableHeadCell className="bg-white text-center">STATUS</TableHeadCell>
-                <TableHeadCell className="bg-white text-center">ACTIONS</TableHeadCell>
-              </TableRow>
-            </TableHead>
-            <TableBody className="divide-y">
-              {isLoadingIncome ? (
-                <TableRow className="bg-white">
-                  <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                    <div className="flex items-center justify-center space-x-2">
-                      <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      <span>Loading income data...</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : incomeData.length === 0 ? (
-                <TableRow className="bg-white hover:bg-gray-50">
-                  <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                    No income data available
-                  </TableCell>
-                </TableRow>
-              ) : (
-                incomeData.map((item) => {
-                  // Ensure item is a valid object with required properties
-                  if (!item || typeof item !== 'object') {
-                    console.error('Invalid item in incomeData:', item);
-                    return null;
-                  }
-
+          {isLoadingIncome ? (
+            <div className="text-center text-gray-500 py-8">
+              <div className="flex items-center justify-center space-x-2">
+                <svg className="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Loading income data...</span>
+              </div>
+            </div>
+          ) : incomeGroupedData.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              No income data available
+            </div>
+          ) : (
+            <div className="border border-gray-200 rounded-lg">
+              <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                <div className="grid grid-cols-6 gap-4 text-sm font-semibold text-gray-700 uppercase">
+                  <div>HEAD</div>
+                  <div>PARTICULARS</div>
+                  <div>BUDGETED</div>
+                  <div>ACTUALS</div>
+                  <div>STATUS</div>
+                  <div>ACTIONS</div>
+                </div>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {incomeGroupedData.map((group) => {
+                  const { parent, children } = group;
+                  const hasChildren = children.length > 0;
+                  const isExpanded = expandedIncomeParents.has(parent.id);
+                  
                   return (
-                    <TableRow key={item.id || Math.random()} className="bg-white hover:bg-gray-50">
-                      <TableCell className="text-center whitespace-nowrap font-medium text-gray-900">
-                        {item.head || '-'}
-                      </TableCell>
-                      <TableCell className="text-center text-gray-700">{item.particular || '-'}</TableCell>
-                      <TableCell className="text-center font-medium text-gray-900">
-                        ₹{(item.budgeted || 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-center font-medium text-gray-900">
-                        ₹{(item.actuals || 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <span className={getStatusBadge(item.status || 'Unknown')}>
-                          {item.status || 'Unknown'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button 
-                          size="xs" 
-                          color="blue"
-                          onClick={() => handleEditIncome(item)}
-                          className="px-3 py-1"
-                        >
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                          Edit
-                        </Button>
-                      </TableCell>
-                    </TableRow>
+                    <div key={parent.id} className="border-b border-gray-200 last:border-b-0">
+                      <div 
+                        className={`bg-white hover:bg-gray-50 px-6 py-4 ${hasChildren ? 'cursor-pointer' : ''}`}
+                        onClick={() => {
+                          if (hasChildren) {
+                            toggleIncomeParent(parent.id);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center justify-between w-full pr-4">
+                          <div className="flex-1 grid grid-cols-6 gap-4 text-left">
+                            <div className="font-medium text-gray-900 flex items-center">
+                              {hasChildren && (
+                                <svg 
+                                  className={`w-4 h-4 text-gray-500 mr-2 transition-transform ${isExpanded ? 'rotate-90' : ''}`} 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                                </svg>
+                              )}
+                              {parent.head || '-'}
+                            </div>
+                            <div className="text-gray-700">{parent.particular || '-'}</div>
+                            <div className="font-medium text-gray-900">₹{(parent.budgeted || 0).toLocaleString()}</div>
+                            <div className="font-medium text-gray-900">₹{(parent.actuals || 0).toLocaleString()}</div>
+                            <div>
+                              <span className={getStatusBadge(parent.status || 'Unknown')}>
+                                {parent.status || 'Unknown'}
+                              </span>
+                            </div>
+                            <div>
+                              <Button 
+                                size="xs" 
+                                color="blue"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditIncome(parent);
+                                }}
+                                className="px-3 py-1"
+                              >
+                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                Edit
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {hasChildren && isExpanded && (
+                        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                          <div className="overflow-x-auto">
+                            <Table>
+                              <TableHead>
+                                <TableRow>
+                                  <TableHeadCell className="bg-gray-100">HEAD</TableHeadCell>
+                                  <TableHeadCell className="bg-gray-100">PARTICULARS</TableHeadCell>
+                                  <TableHeadCell className="bg-gray-100">BUDGETED</TableHeadCell>
+                                  <TableHeadCell className="bg-gray-100">ACTUALS</TableHeadCell>
+                                  <TableHeadCell className="bg-gray-100">STATUS</TableHeadCell>
+                                  <TableHeadCell className="bg-gray-100">ACTIONS</TableHeadCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody className="divide-y divide-gray-200">
+                                {children.map((child) => (
+                                  <TableRow key={child.id} className="bg-white hover:bg-gray-50">
+                                    <TableCell className="text-center whitespace-nowrap font-medium text-gray-900">
+                                      {child.head || '-'}
+                                    </TableCell>
+                                    <TableCell className="text-center text-gray-700">{child.particular || '-'}</TableCell>
+                                    <TableCell className="text-center font-medium text-gray-900">
+                                      ₹{(child.budgeted || 0).toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="text-center font-medium text-gray-900">
+                                      ₹{(child.actuals || 0).toLocaleString()}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <span className={getStatusBadge(child.status || 'Unknown')}>
+                                        {child.status || 'Unknown'}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Button 
+                                        size="xs" 
+                                        color="blue"
+                                        onClick={() => handleEditIncome(child)}
+                                        className="px-3 py-1"
+                                      >
+                                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                        Edit
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   );
-                }).filter(Boolean)
-              )}
-            </TableBody>
-          </Table>
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between p-4 border-t border-gray-200">

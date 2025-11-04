@@ -125,11 +125,40 @@ export default function Receipts() {
     // Add send logic here
   };
 
-  const handleSendWhatsApp = (receipt: ReceiptData) => {
-    const message = `A receipt has been generated. please find the link: ${receipt.pdf_url}`;
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${receipt.member.phone_number}?text=${encodedMessage}`;
-    window.open(whatsappUrl, '_blank');
+  const handleSendWhatsApp = async (receipt: ReceiptData) => {
+    try {
+      // Update status to "sent" via API
+      await axios.put(API_PATHS.UPDATE_RECEIPT_STATUS(receipt.id), {
+        status: 'sent'
+      });
+      
+      // Update local state to reflect the status change
+      setReceiptsData(prev =>
+        prev.map(r =>
+          r.id === receipt.id
+            ? { ...r, status: 'sent' as const }
+            : r
+        )
+      );
+      
+      // Open WhatsApp
+      const message = `A receipt has been generated. please find the link: ${receipt.pdf_url}`;
+      const encodedMessage = encodeURIComponent(message);
+      const whatsappUrl = `https://wa.me/${receipt.member.phone_number}?text=${encodedMessage}`;
+      window.open(whatsappUrl, '_blank');
+      
+      // Show success message
+      setSuccessMessage(`Receipt sent to ${receipt.member.name} via WhatsApp`);
+      setTimeout(() => setSuccessMessage(''), 5000);
+    } catch (error: any) {
+      console.error('Error updating receipt status:', error);
+      setError(error.response?.data?.message || error.message || 'Failed to update receipt status');
+      // Still open WhatsApp even if API call fails
+      const message = `A receipt has been generated. please find the link: ${receipt.pdf_url}`;
+      const encodedMessage = encodeURIComponent(message);
+      const whatsappUrl = `https://wa.me/${receipt.member.phone_number}?text=${encodedMessage}`;
+      window.open(whatsappUrl, '_blank');
+    }
   };
 
   const handleRegenerate = async (id: number) => {

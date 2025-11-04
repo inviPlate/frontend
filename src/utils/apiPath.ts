@@ -23,6 +23,7 @@ export const API_PATHS = {
   // Receipts
   RECEIPTS: `${API_BASE_URL}/get-receipts`,
   RECEIPT: (id: string) => `${API_BASE_URL}/receipts/${id}`,
+  UPDATE_RECEIPT_STATUS: (id: number) => `get-receipts?id=${id}`,
   REGENERATE_RECEIPT: 'https://gen-receipt-618088374050.asia-south1.run.app/genReceipt',
   
   // Emails
