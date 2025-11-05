@@ -19,6 +19,7 @@ export default function Members() {
   const [isLoading, setIsLoading] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [error, setError] = useState<string>('');
 
   // Fetch members from API
@@ -48,13 +49,28 @@ export default function Members() {
     // Add view logic here
   };
 
+  const handleEdit = (member: Member) => {
+    setEditingMember(member);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenModal = () => {
+    setEditingMember(null);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setEditingMember(null);
+    setIsModalOpen(false);
+  };
+
   const handleAddMember = async () => {
     try {
       // The API call is already handled in AddMemberModal
       // Here we just refresh the members list
       const response = await axios.get(API_PATHS.MEMBERS);
       setMembers(response.data.data);
-      console.log('Members list refreshed after adding new member');
+      console.log('Members list refreshed after adding/updating member');
     } catch (error: any) {
       console.error('Error refreshing members list:', error);
       setError(error.response?.data?.message || error.message || 'Failed to refresh members list');
@@ -83,7 +99,7 @@ export default function Members() {
           </div>
         </div>
 
-        <Button className="flex items-center space-x-2" onClick={() => setIsModalOpen(true)}>
+        <Button className="flex items-center space-x-2" onClick={handleOpenModal}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
           </svg>
@@ -146,6 +162,17 @@ export default function Members() {
                       <Button 
                         size="xs" 
                         color="blue"
+                        onClick={() => handleEdit(member)}
+                        className="px-3 py-1"
+                      >
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                        Edit
+                      </Button>
+                      <Button 
+                        size="xs" 
+                        color="gray"
                         onClick={() => handleView(member.id)}
                         className="px-3 py-1"
                       >
@@ -167,8 +194,9 @@ export default function Members() {
       {/* Add Member Modal */}
       <AddMemberModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         onSave={handleAddMember}
+        editData={editingMember}
       />
     </div>
   );

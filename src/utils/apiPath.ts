@@ -47,6 +47,7 @@ export const API_PATHS = {
   // Members
   MEMBERS: `/add-member`,
   ADD_MEMBER: '/add-member',
+  UPDATE_MEMBER: (id: number) => `add-member?id=${id}`,
   MEMBER: (id: string) => `${API_BASE_URL}/members/${id}`,
   
   // Deposits

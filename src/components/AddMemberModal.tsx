@@ -9,14 +9,23 @@ interface MemberData {
   email: string;
 }
 
+interface Member {
+  id: number;
+  name: string;
+  phone_number: string;
+  email: string;
+  is_active?: boolean;
+}
+
 interface AddMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: MemberData) => void;
   prefilledName?: string;
+  editData?: Member | null;
 }
 
-export function AddMemberModal({ isOpen, onClose, onSave, prefilledName }: AddMemberModalProps) {
+export function AddMemberModal({ isOpen, onClose, onSave, prefilledName, editData }: AddMemberModalProps) {
   const axios = useAxios();
   const [formData, setFormData] = useState<MemberData>({
     name: '',
@@ -27,6 +36,7 @@ export function AddMemberModal({ isOpen, onClose, onSave, prefilledName }: AddMe
   const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const isEditMode = !!editData;
 
   const handleInputChange = (field: keyof MemberData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -34,33 +44,32 @@ export function AddMemberModal({ isOpen, onClose, onSave, prefilledName }: AddMe
   };
 
   const handleSave = async () => {
-    // Validate form data
+    // Validate form data - only name is required
     if (!formData.name.trim()) {
       setErrorMessage('Name is required');
       return;
     }
-    if (!formData.phone_number.trim()) {
-      setErrorMessage('Phone number is required');
-      return;
-    }
-    if (!formData.email.trim()) {
-      setErrorMessage('Email is required');
-      return;
-    }
 
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email)) {
-      setErrorMessage('Please enter a valid email address');
-      return;
+    // Email validation - only if email is provided
+    if (formData.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        setErrorMessage('Please enter a valid email address');
+        return;
+      }
     }
 
     setIsSaving(true);
     setErrorMessage('');
 
     try {
-      // Make API call to add member
-      await axios.post(API_PATHS.ADD_MEMBER, formData);
+      if (isEditMode && editData) {
+        // Update existing member
+        await axios.put(API_PATHS.UPDATE_MEMBER(editData.id), formData);
+      } else {
+        // Add new member
+        await axios.post(API_PATHS.ADD_MEMBER, formData);
+      }
       
       // Call the onSave callback with the form data
       onSave(formData);
@@ -70,7 +79,7 @@ export function AddMemberModal({ isOpen, onClose, onSave, prefilledName }: AddMe
       onClose();
     } catch (error: any) {
       console.error('Error saving member:', error);
-      setErrorMessage(error.response?.data?.message || error.message || 'Failed to save member. Please try again.');
+      setErrorMessage(error.response?.data?.message || error.message || `Failed to ${isEditMode ? 'update' : 'save'} member. Please try again.`);
     } finally {
       setIsSaving(false);
     }
@@ -82,16 +91,24 @@ export function AddMemberModal({ isOpen, onClose, onSave, prefilledName }: AddMe
   };
 
   const resetForm = () => {
-    setFormData({
-      name: prefilledName || '',
-      phone_number: '',
-      email: ''
-    });
+    if (editData) {
+      setFormData({
+        name: editData.name || '',
+        phone_number: editData.phone_number || '',
+        email: editData.email || ''
+      });
+    } else {
+      setFormData({
+        name: prefilledName || '',
+        phone_number: '',
+        email: ''
+      });
+    }
     setHasUnsavedChanges(false);
     setErrorMessage('');
   };
 
-  // Reset form when modal opens and focus first input
+  // Reset form when modal opens or editData changes
   useEffect(() => {
     if (isOpen) {
       resetForm();
@@ -103,7 +120,7 @@ export function AddMemberModal({ isOpen, onClose, onSave, prefilledName }: AddMe
         }
       }, 100);
     }
-  }, [isOpen, prefilledName]);
+  }, [isOpen, editData, prefilledName]);
 
   const handleClose = () => {
     if (hasUnsavedChanges) {
@@ -120,7 +137,7 @@ export function AddMemberModal({ isOpen, onClose, onSave, prefilledName }: AddMe
   return (
     <Modal show={isOpen} onClose={handleClose} size="lg" className="[&>*]:!bg-gray-100 [&_*]:!text-gray-900">
       <ModalHeader className="bg-gray-100 border-gray-200">
-        <div className="text-2xl font-bold text-gray-900">Add New Member</div>
+        <div className="text-2xl font-bold text-gray-900">{isEditMode ? 'Edit Member' : 'Add New Member'}</div>
       </ModalHeader>
       
       <ModalBody className="bg-gray-100">
@@ -169,7 +186,7 @@ export function AddMemberModal({ isOpen, onClose, onSave, prefilledName }: AddMe
           {/* Phone Field */}
           <div>
             <Label htmlFor="memberPhone" className="block text-sm font-medium text-gray-700 mb-2">
-              Phone Number *
+              Phone Number
             </Label>
             <div className="relative">
               <input
@@ -198,7 +215,7 @@ export function AddMemberModal({ isOpen, onClose, onSave, prefilledName }: AddMe
           {/* Email Field */}
           <div>
             <Label htmlFor="memberEmail" className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address *
+              Email Address
             </Label>
             <div className="relative">
               <input
@@ -246,11 +263,11 @@ export function AddMemberModal({ isOpen, onClose, onSave, prefilledName }: AddMe
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
-                Saving...
+                {isEditMode ? 'Updating...' : 'Saving...'}
               </>
             ) : (
               <>
-                Save
+                {isEditMode ? 'Update' : 'Save'}
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
                 </svg>
