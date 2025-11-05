@@ -120,9 +120,51 @@ export default function Receipts() {
     setSelectedReceipt(null);
   };
 
-  const handleSend = (id: number) => {
-    console.log('Send receipt:', id);
-    // Add send logic here
+  const handleSend = async (receipt: ReceiptData) => {
+    try {
+      // Check if member has an email
+      if (!receipt.member.email || !receipt.member.email.trim()) {
+        setError('Member does not have an email address');
+        setTimeout(() => setError(''), 5000);
+        return;
+      }
+
+      // Update status to "sent" via API
+      await axios.put(API_PATHS.UPDATE_RECEIPT_STATUS(receipt.id), {
+        status: 'sent'
+      });
+      
+      // Update local state to reflect the status change
+      setReceiptsData(prev =>
+        prev.map(r =>
+          r.id === receipt.id
+            ? { ...r, status: 'sent' as const }
+            : r
+        )
+      );
+      
+      // Open email client with mailto link
+      const subject = encodeURIComponent('Receipt Generated');
+      const message = `A receipt has been generated. please find the link: ${receipt.pdf_url}`;
+      const body = encodeURIComponent(message);
+      const mailtoUrl = `mailto:${receipt.member.email}?subject=${subject}&body=${body}`;
+      window.open(mailtoUrl, '_blank');
+      
+      // Show success message
+      setSuccessMessage(`Receipt sent to ${receipt.member.name} via Email`);
+      setTimeout(() => setSuccessMessage(''), 5000);
+    } catch (error: any) {
+      console.error('Error updating receipt status:', error);
+      setError(error.response?.data?.message || error.message || 'Failed to update receipt status');
+      // Still open email even if API call fails
+      if (receipt.member.email && receipt.member.email.trim()) {
+        const subject = encodeURIComponent('Receipt Generated');
+        const message = `A receipt has been generated. please find the link: ${receipt.pdf_url}`;
+        const body = encodeURIComponent(message);
+        const mailtoUrl = `mailto:${receipt.member.email}?subject=${subject}&body=${body}`;
+        window.open(mailtoUrl, '_blank');
+      }
+    }
   };
 
   const handleSendWhatsApp = async (receipt: ReceiptData) => {
@@ -373,7 +415,7 @@ export default function Receipts() {
 interface ReceiptsTableProps {
   data: ReceiptData[];
   onView: (id: number) => void;
-  onSend: (id: number) => void;
+  onSend: (receipt: ReceiptData) => void;
   onSendWhatsApp: (receipt: ReceiptData) => void;
   onRegenerate: (id: number) => void;
   formatCurrency: (amount: number) => string;
@@ -448,9 +490,9 @@ function ReceiptsTable({ data, onView, onSend, onSendWhatsApp, onRegenerate, for
                     <Button 
                       size="xs" 
                       color="blue"
-                      onClick={() => onSend(receipt.id)}
+                      onClick={() => onSend(receipt)}
                       className="px-3 py-1"
-                      disabled={receipt.status === 'sent'}
+                      disabled={receipt.status === 'sent' || !receipt.member?.email || !receipt.member.email?.trim()}
                     >
                       <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
