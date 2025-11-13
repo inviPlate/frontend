@@ -53,12 +53,15 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
   const [showNameSuggestions, setShowNameSuggestions] = useState<boolean>(false);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState<boolean>(false);
   const [prefilledMemberName, setPrefilledMemberName] = useState<string>('');
+  const [amountError, setAmountError] = useState<string>('');
+  const [amountInput, setAmountInput] = useState<string>('');
   const axiosInstance = useAxios();
 
   // Clear selected head when modal closes
   useEffect(() => {
     if (!isOpen) {
       setSelectedHead(null);
+      setAmountError('');
     }
   }, [isOpen]);
 
@@ -94,6 +97,8 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
         member_id: editData.member_id,
         mode_of_payment: editData.mode_of_payment || 'cash'
       });
+      setAmountInput(editData.amount.toString());
+      setAmountError('');
       
       // Set the selected head for display
       if (editData.head_id) {
@@ -116,6 +121,8 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
         year_id: yearId,
         mode_of_payment: 'cash'
       });
+      setAmountInput('');
+      setAmountError('');
       setSelectedHead(null);
       setHeadQuery('');
       setMemberName('');
@@ -127,6 +134,51 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
       ...prev,
       [field]: value
     }));
+  };
+
+  const validateAmount = (value: string): boolean => {
+    // Allow empty string (for clearing)
+    if (value === '') {
+      setAmountError('');
+      return true;
+    }
+    
+    // Check if it's a valid number format (positive numbers with optional decimals)
+    // Allows: "123", "123.45", "0.5", ".5" (but we'll validate these further)
+    const numberRegex = /^\d*\.?\d*$/;
+    if (!numberRegex.test(value)) {
+      setAmountError('Please enter a valid number');
+      return false;
+    }
+    
+    // Check if it's a valid positive number (not just dots or empty after trim)
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || numValue < 0 || value === '.' || value.trim() === '') {
+      setAmountError('Amount must be a positive number');
+      return false;
+    }
+    
+    setAmountError('');
+    return true;
+  };
+
+  const handleAmountChange = (value: string) => {
+    setAmountInput(value);
+    
+    // Allow empty string for clearing
+    if (value === '') {
+      setFormData(prev => ({ ...prev, amount: 0 }));
+      setAmountError('');
+      return;
+    }
+    
+    // Validate the input
+    if (validateAmount(value)) {
+      const numValue = parseFloat(value);
+      if (!isNaN(numValue)) {
+        setFormData(prev => ({ ...prev, amount: numValue }));
+      }
+    }
   };
 
   const handleHeadSelect = (head: HeadSuggestion) => {
@@ -205,6 +257,12 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
   };
 
   const handleSave = async () => {
+    // Validate amount before saving
+    if (amountInput === '' || amountError || !validateAmount(amountInput)) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
     if (!formData.head_id || !formData.description || !formData.amount || !formData.date) {
       alert('Please fill in all required fields');
       return;
@@ -246,6 +304,8 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
           year_id: yearId,
           mode_of_payment: 'cash'
         });
+        setAmountInput('');
+        setAmountError('');
         setSelectedHead(null);
         setHeadQuery('');
         setMemberName('');
@@ -405,25 +465,31 @@ export function AddTransactionModal({ isOpen, onClose, onSave, yearId, editData 
             <div className="relative">
               <input
                 id="amount"
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
                 placeholder="Input text"
                 required
-                value={formData.amount}
-                onChange={(e) => handleInputChange('amount', e.target.value)}
-                className="w-full px-3 py-2 bg-blue-50 border border-blue-200 text-gray-900 placeholder-gray-500 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none"
+                value={amountInput}
+                onChange={(e) => handleAmountChange(e.target.value)}
+                className={`w-full px-3 py-2 bg-blue-50 border ${
+                  amountError ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-blue-200 focus:ring-blue-500 focus:border-blue-500'
+                } text-gray-900 placeholder-gray-500 rounded-lg outline-none`}
               />
               <button
                 type="button"
                 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                onClick={() => handleInputChange('amount', 0)}
+                onClick={() => {
+                  setAmountInput('');
+                  handleAmountChange('');
+                }}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
               </button>
             </div>
+            {amountError && (
+              <p className="mt-1 text-sm text-red-600">{amountError}</p>
+            )}
           </div>
 
           {/* Date */}
