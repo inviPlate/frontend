@@ -96,6 +96,55 @@ export function BudgetHeads() {
         }
     };
 
+    const getPageNumbers = (): (number | string)[] => {
+        const { page, totalPages } = pagination;
+        const pages: (number | string)[] = [];
+        
+        if (totalPages <= 7) {
+            // If 7 or fewer pages, show all
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            // Always show first page
+            pages.push(1);
+            
+            // Calculate start and end of the window around current page
+            let start = Math.max(2, page - 1);
+            let end = Math.min(totalPages - 1, page + 1);
+            
+            // Adjust window if we're near the beginning
+            if (page <= 3) {
+                end = Math.min(5, totalPages - 1);
+            }
+            
+            // Adjust window if we're near the end
+            if (page >= totalPages - 2) {
+                start = Math.max(2, totalPages - 4);
+            }
+            
+            // Add ellipsis before window if needed
+            if (start > 2) {
+                pages.push('ellipsis-start');
+            }
+            
+            // Add pages in the window
+            for (let i = start; i <= end; i++) {
+                pages.push(i);
+            }
+            
+            // Add ellipsis after window if needed
+            if (end < totalPages - 1) {
+                pages.push('ellipsis-end');
+            }
+            
+            // Always show last page
+            pages.push(totalPages);
+        }
+        
+        return pages;
+    };
+
     return (
         <div className="p-6">
             <div className="mb-6">
@@ -211,8 +260,17 @@ export function BudgetHeads() {
                         </button>
                         
                         {/* Page Numbers */}
-                        {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                            const pageNum = i + 1;
+                        {getPageNumbers().map((pageItem, index) => {
+                            if (typeof pageItem === 'string') {
+                                // Render ellipsis
+                                return (
+                                    <span key={`ellipsis-${index}`} className="px-3 py-2 text-sm text-gray-500">
+                                        ...
+                                    </span>
+                                );
+                            }
+                            
+                            const pageNum = pageItem;
                             return (
                                 <button 
                                     key={pageNum}
@@ -227,10 +285,6 @@ export function BudgetHeads() {
                                 </button>
                             );
                         })}
-                        
-                        {pagination.totalPages > 5 && (
-                            <span className="px-3 py-2 text-sm text-gray-500">...</span>
-                        )}
                         
                         <button 
                             className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed" 
