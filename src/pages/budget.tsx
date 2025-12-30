@@ -1,6 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow, Button, TextInput } from "flowbite-react";
 import { useState, useEffect, useCallback } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import { useNavigate } from "react-router-dom";
 import { AddBudgetHeadModal } from "../components/addBudgetModal";
 import { AddYearModal } from "../components/AddYearModal";
 import YearSelector from "../components/YearSelector";
@@ -44,6 +45,7 @@ interface BudgetData {
 }
 
 export default function Budget() {
+  const navigate = useNavigate();
   const [isIncomeModalOpen, setIsIncomeModalOpen] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [isAddYearModalOpen, setIsAddYearModalOpen] = useState(false);
@@ -437,6 +439,15 @@ export default function Budget() {
     setIsAddYearModalOpen(false);
   };
 
+  const handleGenerateBalanceSheet = () => {
+    const yearId = getCurrentYearId();
+    if (yearId) {
+      navigate(`/balance-sheet?year=${encodeURIComponent(selectedYear)}&yearId=${yearId}`);
+    } else {
+      setErrorMessage('Please select a fiscal year before generating balance sheet.');
+    }
+  };
+
   return (
     <div className="p-6 space-y-8">
       <div className="mb-6">
@@ -463,6 +474,17 @@ export default function Budget() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
             </svg>
             Add Effective Year
+          </Button>
+          <Button
+            size="sm"
+            color="green"
+            className="px-4 py-2 h-8"
+            onClick={handleGenerateBalanceSheet}
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            Generate Balance Sheet
           </Button>
         </div>
         {errorMessage && (
