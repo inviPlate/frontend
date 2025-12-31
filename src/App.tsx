@@ -12,6 +12,7 @@ import Receipts from './pages/receipts'
 import Members from './pages/members'
 import { Funds } from './pages/funds'
 import BalanceSheet from './pages/balanceSheet'
+import TreasurerReport from './pages/treasurerReport'
 import { AppLayout } from './components/AppLayout';
 import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './context/AuthContext';
@@ -63,6 +64,12 @@ const AppRoutes = () => {
         <Route path="/balance-sheet" element={
           <Protect fallback={<Navigate to="/sign-in" state={{ from: { pathname: '/balance-sheet' } }} replace />}>
             <BalanceSheet />
+          </Protect>
+        } />
+
+        <Route path="/treasurer-report" element={
+          <Protect fallback={<Navigate to="/sign-in" state={{ from: { pathname: '/treasurer-report' } }} replace />}>
+            <TreasurerReport />
           </Protect>
         } />
 
