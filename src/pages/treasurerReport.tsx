@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Dropdown, DropdownItem, ToggleSwitch, Table, TableBody, TableCell, TableHead, TableHeadCell, TableRow } from 'flowbite-react';
-import { BarChart } from '@mui/x-charts';
+import { BarChart, LineChart } from '@mui/x-charts';
 import YearSelector from '../components/YearSelector';
 import useAxios from '../context/useAxios';
 import { API_PATHS } from '../utils/apiPath';
@@ -273,6 +273,55 @@ export default function TreasurerReport() {
     };
   };
 
+  const prepareWeeklyChartData = () => {
+    // Group transactions by week
+    const weeklyData: { [key: string]: { income: number; expense: number; weekLabel: string } } = {};
+
+    transactions.forEach((transaction) => {
+      const date = new Date(transaction.date);
+      // Get the start of the week (Monday)
+      const dayOfWeek = date.getDay();
+      const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust when day is Sunday
+      const weekStart = new Date(date);
+      weekStart.setDate(diff);
+      weekStart.setHours(0, 0, 0, 0);
+      
+      // Create a key for the week (YYYY-WW format)
+      const year = weekStart.getFullYear();
+      const month = weekStart.getMonth() + 1;
+      const day = weekStart.getDate();
+      const weekKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      
+      // Format week label (e.g., "Oct 7 - Oct 13")
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+
+      if (!weeklyData[weekKey]) {
+        weeklyData[weekKey] = {
+          income: 0,
+          expense: 0,
+          weekLabel,
+        };
+      }
+
+      if (transaction.type === 'income') {
+        weeklyData[weekKey].income += transaction.amount;
+      } else {
+        weeklyData[weekKey].expense += transaction.amount;
+      }
+    });
+
+    // Sort by week key (chronological order)
+    const sortedWeeks = Object.keys(weeklyData).sort();
+    
+    return {
+      weeks: sortedWeeks.map(key => weeklyData[key].weekLabel),
+      income: sortedWeeks.map(key => weeklyData[key].income),
+      expense: sortedWeeks.map(key => weeklyData[key].expense),
+    };
+  };
+
   return (
     <div className="p-6 space-y-8">
       <div className="mb-6">
@@ -352,60 +401,124 @@ export default function TreasurerReport() {
               </p>
             </div>
             
-            {/* Bar Chart */}
-            {groupedTransactions.length > 0 && (() => {
+            {/* Charts */}
+            {groupedTransactions.length > 0 && transactions.length > 0 && (() => {
               const chartData = prepareChartData();
-              const chartWidth =  chartData.labels.length * 60;
+              const weeklyData = prepareWeeklyChartData();
               return (
-                <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Transaction Summary by Head</h2>
-                  <div className="overflow-x-auto">
-                    <div >
-                      <BarChart
-                        // width={chartWidth}
-                        height={400}
-                        series={[
-                          {
-                            data: chartData.incomeData,
-                            label: 'Income',
-                            color: '#10b981'
-                          },
-                          {
-                            data: chartData.expenseData,
-                            label: 'Expense',
-                            color: '#ef4444',
-                          },
-                        ]}
-                        // barLabel={(v) => (v.value !=0) ? `${Math.sqrt(v.value*v.value)}` : undefined}
-                        yAxis={[{ data: chartData.labels,width: 200, scaleType: 'band' }]}
-                        xAxis={[{ 
-                          label: 'Amount (₹)',
-                          valueFormatter: (value: number) => {
-                            const absValue = Math.abs(value);
-                            return new Intl.NumberFormat("en-IN", {
-                              style: "currency",
-                              currency: "INR",
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            }).format(absValue);
-                          }
-                        }]}
-                        layout='horizontal'
-                        grid={{ vertical: true }}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  {/* Bar Chart */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Transaction Summary by Head</h2>
+                    <div className="overflow-x-auto">
+                      <div >
+                        <BarChart
+                          // width={chartWidth}
+                          height={400}
+                          series={[
+                            {
+                              data: chartData.incomeData,
+                              label: 'Income',
+                              color: '#10b981'
+                            },
+                            {
+                              data: chartData.expenseData,
+                              label: 'Expense',
+                              color: '#ef4444',
+                            },
+                          ]}
+                          // barLabel={(v) => (v.value !=0) ? `${Math.sqrt(v.value*v.value)}` : undefined}
+                          yAxis={[{ data: chartData.labels,width: 200, scaleType: 'band' }]}
+                          xAxis={[{ 
+                            label: 'Amount (₹)',
+                            valueFormatter: (value: number) => {
+                              const absValue = Math.abs(value);
+                              return new Intl.NumberFormat("en-IN", {
+                                style: "currency",
+                                currency: "INR",
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                              }).format(absValue);
+                            }
+                          }]}
+                          layout='horizontal'
+                          grid={{ vertical: true }}
 
-                        // margin={{ left: 80, right: 30, top: 30, bottom: 100 }}
-                      />
+                          // margin={{ left: 80, right: 30, top: 30, bottom: 100 }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-center space-x-6 mt-4">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 bg-green-500 rounded"></div>
+                        <span className="text-sm text-gray-700">Income</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 bg-red-500 rounded"></div>
+                        <span className="text-sm text-gray-700">Expense</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-center space-x-6 mt-4">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 bg-green-500 rounded"></div>
-                      <span className="text-sm text-gray-700">Income</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="w-4 h-4 bg-red-500 rounded"></div>
-                      <span className="text-sm text-gray-700">Expense</span>
-                    </div>
+
+                  {/* Line Chart - Weekly */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Weekly Transaction Trends</h2>
+                    {weeklyData.weeks.length === 0 ? (
+                      <div className="h-96 flex items-center justify-center text-gray-500">
+                        No weekly data available
+                      </div>
+                    ) : (
+                      <>
+                        <div className="overflow-x-auto">
+                          <div style={{ minWidth: `${Math.max(600, weeklyData.weeks.length * 80)}px` }}>
+                            <LineChart
+                              width={Math.max(600, weeklyData.weeks.length * 80)}
+                              height={400}
+                              series={[
+                                {
+                                  data: weeklyData.income,
+                                  label: 'Income',
+                                  color: '#10b981',
+                                },
+                                {
+                                  data: weeklyData.expense,
+                                  label: 'Expense',
+                                  color: '#ef4444',
+                                },
+                              ]}
+                              xAxis={[{ 
+                                data: weeklyData.weeks, 
+                                scaleType: 'point',
+                                label: 'Week'
+                              }]}
+                              yAxis={[{ 
+                                label: 'Amount (₹)',
+                                valueFormatter: (value: number) => {
+                                  return new Intl.NumberFormat("en-IN", {
+                                    style: "currency",
+                                    currency: "INR",
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 0,
+                                  }).format(value);
+                                }
+                              }]}
+                              grid={{ vertical: true, horizontal: true }}
+                              margin={{ left: 80, right: 30, top: 30, bottom: 100 }}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-center space-x-6 mt-4">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-4 h-4 bg-green-500 rounded"></div>
+                            <span className="text-sm text-gray-700">Income</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <div className="w-4 h-4 bg-red-500 rounded"></div>
+                            <span className="text-sm text-gray-700">Expense</span>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               );
