@@ -237,7 +237,6 @@ export default function TreasurerReport() {
     const groupedArray = Object.values(grouped).sort((a, b) => 
       a.headName.localeCompare(b.headName)
     );
-
     setGroupedTransactions(groupedArray);
   }, [transactions, budgetHeads]);
 
@@ -442,7 +441,12 @@ export default function TreasurerReport() {
               <div className="flex items-center justify-between">
                 <p className="text-lg font-semibold text-gray-900">Grand Total</p>
                 <p className="text-lg font-bold text-gray-900">
-                  {formatCurrency(groupedTransactions.reduce((sum, group) => sum + group.total, 0))}
+                  {formatCurrency(groupedTransactions.reduce((sum, group) => {
+                    if (group.type === 'income') {
+                      return sum + group.total;
+                    } else {
+                      return sum - group.total;
+                    }}, 0))}
                 </p>
               </div>
             </div>
