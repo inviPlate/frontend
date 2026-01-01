@@ -16,7 +16,14 @@ export function NavBar() {
     const { openModal } = useOffertoryModal();
 
     const navItems: NavItem[] = [
-        { name: 'Overview', path: '/' },
+        { 
+            name: 'Overview', 
+            path: '/',
+            children: [
+                { name: 'Overview', path: '/' },
+                { name: 'Treasurer Report', path: '/treasurer-report' }
+            ]
+        },
         { name: 'Transactions', path: '/transactions' },
         { 
             name: 'Budget', 
