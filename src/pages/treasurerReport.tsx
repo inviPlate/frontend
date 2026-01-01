@@ -63,15 +63,25 @@ interface GroupedTransaction {
   headName: string;
   particulars: string;
   total: number;
+  cumulative: number;
   type: 'income' | 'expense';
 }
 
 export default function TreasurerReport() {
+  // Get current month name
+  const getCurrentMonth = () => {
+    const currentDate = new Date();
+    const currentMonthIndex = currentDate.getMonth(); // 0-11
+    return MONTHS[currentMonthIndex];
+  };
+
   const [selectedYear, setSelectedYear] = useState<string>('2025-2026');
-  const [selectedMonth, setSelectedMonth] = useState<string>('January');
+  const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonth());
   const [isAnnual, setIsAnnual] = useState<boolean>(false);
   const [fiscalYears, setFiscalYears] = useState<Array<{ id: number; year: string; is_active: boolean; is_deleted: boolean }>>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [cumulativeTransactions, setCumulativeTransactions] = useState<Transaction[]>([]);
+  const [annualTransactions, setAnnualTransactions] = useState<Transaction[]>([]);
   const [budgetHeads, setBudgetHeads] = useState<BudgetHead[]>([]);
   const [groupedTransactions, setGroupedTransactions] = useState<GroupedTransaction[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -131,6 +141,71 @@ export default function TreasurerReport() {
     };
   };
 
+  const getCumulativeDateRange = () => {
+    const yearId = getCurrentYearId();
+    if (!yearId) return { startDate: '', endDate: '' };
+
+    // Get the fiscal year from the selected year string (e.g., "2025-2026")
+    const yearParts = selectedYear.split('-');
+    const startYear = parseInt(yearParts[0]);
+    const endYear = yearParts.length > 1 ? parseInt(yearParts[1]) : startYear + 1;
+
+    // Cumulative always starts from April 1st of the fiscal year
+    const cumulativeStartDate = new Date(startYear, 3, 1); // April 1st of start year
+
+    let cumulativeEndDate: Date;
+
+    if (isAnnual) {
+      // For annual, end date is March 31st of end year
+      cumulativeEndDate = new Date(endYear, 2, 31, 23, 59, 59, 999); // March 31st of end year
+    } else {
+      // For monthly, end date is the last day of the selected month
+      const monthNumber = getMonthNumber(selectedMonth);
+      const monthYear = monthNumber >= 4 ? startYear : endYear;
+      cumulativeEndDate = new Date(monthYear, monthNumber, 0, 23, 59, 59, 999); // Last day of month
+    }
+
+    // Format dates as DD/MM/YYYY
+    const formatDate = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${day}/${month}/${year}`;
+    };
+
+    return {
+      startDate: formatDate(cumulativeStartDate),
+      endDate: formatDate(cumulativeEndDate)
+    };
+  };
+
+  const getAnnualDateRange = () => {
+    const yearId = getCurrentYearId();
+    if (!yearId) return { startDate: '', endDate: '' };
+
+    // Get the fiscal year from the selected year string (e.g., "2025-2026")
+    const yearParts = selectedYear.split('-');
+    const startYear = parseInt(yearParts[0]);
+    const endYear = yearParts.length > 1 ? parseInt(yearParts[1]) : startYear + 1;
+
+    // Annual always uses the full fiscal year (April to March)
+    const annualStartDate = new Date(startYear, 3, 1); // April 1st of start year
+    const annualEndDate = new Date(endYear, 2, 31, 23, 59, 59, 999); // March 31st of end year
+
+    // Format dates as DD/MM/YYYY
+    const formatDate = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${day}/${month}/${year}`;
+    };
+
+    return {
+      startDate: formatDate(annualStartDate),
+      endDate: formatDate(annualEndDate)
+    };
+  };
+
   const handleYearChange = (year: string) => {
     setSelectedYear(year);
   };
@@ -177,6 +252,76 @@ export default function TreasurerReport() {
     fetchTransactions();
   }, [selectedYear, selectedMonth, isAnnual, fiscalYears, axiosInstance]);
 
+  // Fetch cumulative transactions (from April 1st to end of selected period)
+  useEffect(() => {
+    const fetchCumulativeTransactions = async () => {
+      const yearId = getCurrentYearId();
+      if (!yearId) return;
+
+      const { startDate, endDate } = getCumulativeDateRange();
+      if (!startDate || !endDate) return;
+
+      try {
+        // Fetch cumulative transactions with date range
+        const response = await axiosInstance.get(
+          `${API_PATHS.TRANSACTIONS}?yearId=${yearId}&startDate=${startDate}&endDate=${endDate}&page=1&pageSize=10000`
+        );
+        const data = response.data?.data || [];
+        
+        // Filter by year to ensure data integrity
+        const filteredData = data.filter((item: Transaction) => {
+          if (!item || typeof item !== 'object') return false;
+          if (item.year_head && item.year_head.year_id && item.year_head.year_id !== yearId) {
+            return false;
+          }
+          return true;
+        });
+
+        setCumulativeTransactions(filteredData);
+      } catch (error) {
+        console.error('Error fetching cumulative transactions:', error);
+        setCumulativeTransactions([]);
+      }
+    };
+
+    fetchCumulativeTransactions();
+  }, [selectedYear, selectedMonth, isAnnual, fiscalYears, axiosInstance]);
+
+  // Fetch annual transactions (always full fiscal year for line chart)
+  useEffect(() => {
+    const fetchAnnualTransactions = async () => {
+      const yearId = getCurrentYearId();
+      if (!yearId) return;
+
+      const { startDate, endDate } = getAnnualDateRange();
+      if (!startDate || !endDate) return;
+
+      try {
+        // Fetch annual transactions with date range (always full fiscal year)
+        const response = await axiosInstance.get(
+          `${API_PATHS.TRANSACTIONS}?yearId=${yearId}&startDate=${startDate}&endDate=${endDate}&page=1&pageSize=10000`
+        );
+        const data = response.data?.data || [];
+        
+        // Filter by year to ensure data integrity
+        const filteredData = data.filter((item: Transaction) => {
+          if (!item || typeof item !== 'object') return false;
+          if (item.year_head && item.year_head.year_id && item.year_head.year_id !== yearId) {
+            return false;
+          }
+          return true;
+        });
+
+        setAnnualTransactions(filteredData);
+      } catch (error) {
+        console.error('Error fetching annual transactions:', error);
+        setAnnualTransactions([]);
+      }
+    };
+
+    fetchAnnualTransactions();
+  }, [selectedYear, fiscalYears, axiosInstance]);
+
   // Fetch budget heads to understand parent-child relationships
   useEffect(() => {
     const fetchBudgetHeads = async () => {
@@ -202,6 +347,8 @@ export default function TreasurerReport() {
     budgetHeads.forEach((head) => {
       headMap.set(head.id, head);
     });
+
+    // Process regular transactions
     transactions.forEach((transaction) => {
       let headId = transaction.head?.id;
       let headName = transaction.head?.head || 'Unknown';
@@ -227,6 +374,7 @@ export default function TreasurerReport() {
           headName,
           particulars,
           total: 0,
+          cumulative: 0,
           type: headType === 'income' ? 'income' : 'expense',
         };
       }
@@ -234,11 +382,45 @@ export default function TreasurerReport() {
       grouped[headId].total += transaction.amount;
     });
 
+    // Process cumulative transactions
+    cumulativeTransactions.forEach((transaction) => {
+      let headId = transaction.head?.id;
+      let headName = transaction.head?.head || 'Unknown';
+      let particulars = transaction.head?.particulars || '';
+      let headType = transaction.head?.type || transaction.type;
+      
+      // If this head has a child_of, find the parent and use that instead
+      if (transaction.head?.child_of) {
+        const parentHead = headMap.get(transaction.head.child_of);
+        if (parentHead) {
+          headId = parentHead.id;
+          headName = parentHead.head;
+          particulars = parentHead.particulars;
+          headType = parentHead.type;
+        }
+      }
+
+      if (!headId) return;
+
+      if (!grouped[headId]) {
+        grouped[headId] = {
+          headId,
+          headName,
+          particulars,
+          total: 0,
+          cumulative: 0,
+          type: headType === 'income' ? 'income' : 'expense',
+        };
+      }
+
+      grouped[headId].cumulative += transaction.amount;
+    });
+
     const groupedArray = Object.values(grouped).sort((a, b) => 
       a.headName.localeCompare(b.headName)
     );
     setGroupedTransactions(groupedArray);
-  }, [transactions, budgetHeads]);
+  }, [transactions, cumulativeTransactions, budgetHeads]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-IN", {
@@ -249,12 +431,19 @@ export default function TreasurerReport() {
     }).format(amount);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const prepareChartData = () => {
     const incomeData: number[] = [];
     const expenseData: number[] = [];
     const labels: string[] = [];
     groupedTransactions.forEach((group) => {
-      const shortName =  group.particulars;
+      // Skip groups with zero total
+      if (group.total === 0) return;
+      
+      const shortName = group.particulars;
       labels.push(shortName);
       
       if (group.type === 'income') {
@@ -273,62 +462,161 @@ export default function TreasurerReport() {
     };
   };
 
-  const prepareWeeklyChartData = () => {
-    // Group transactions by week
-    const weeklyData: { [key: string]: { income: number; expense: number; weekLabel: string } } = {};
+  const prepareMonthlyChartData = () => {
+    // Group transactions by month (always use annual transactions)
+    const monthlyData: { [key: string]: { income: number; expense: number; monthLabel: string } } = {};
 
-    transactions.forEach((transaction) => {
+    annualTransactions.forEach((transaction) => {
       const date = new Date(transaction.date);
-      // Get the start of the week (Monday)
-      const dayOfWeek = date.getDay();
-      const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust when day is Sunday
-      const weekStart = new Date(date);
-      weekStart.setDate(diff);
-      weekStart.setHours(0, 0, 0, 0);
       
-      // Create a key for the week (YYYY-WW format)
-      const year = weekStart.getFullYear();
-      const month = weekStart.getMonth() + 1;
-      const day = weekStart.getDate();
-      const weekKey = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      // Create a key for the month (YYYY-MM format)
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const monthKey = `${year}-${String(month).padStart(2, '0')}`;
       
-      // Format week label (e.g., "Oct 7 - Oct 13")
-      const weekEnd = new Date(weekStart);
-      weekEnd.setDate(weekEnd.getDate() + 6);
-      const weekLabel = `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      // Format month label (e.g., "April 2025")
+      const monthLabel = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
-      if (!weeklyData[weekKey]) {
-        weeklyData[weekKey] = {
+      if (!monthlyData[monthKey]) {
+        monthlyData[monthKey] = {
           income: 0,
           expense: 0,
-          weekLabel,
+          monthLabel,
         };
       }
 
       if (transaction.type === 'income') {
-        weeklyData[weekKey].income += transaction.amount;
+        monthlyData[monthKey].income += transaction.amount;
       } else {
-        weeklyData[weekKey].expense += transaction.amount;
+        monthlyData[monthKey].expense += transaction.amount;
       }
     });
 
-    // Sort by week key (chronological order)
-    const sortedWeeks = Object.keys(weeklyData).sort();
+    // Sort by month key (chronological order)
+    const sortedMonths = Object.keys(monthlyData).sort();
     
     return {
-      weeks: sortedWeeks.map(key => weeklyData[key].weekLabel),
-      income: sortedWeeks.map(key => weeklyData[key].income),
-      expense: sortedWeeks.map(key => weeklyData[key].expense),
+      months: sortedMonths.map(key => monthlyData[key].monthLabel),
+      income: sortedMonths.map(key => monthlyData[key].income),
+      expense: sortedMonths.map(key => monthlyData[key].expense),
     };
   };
 
   return (
-    <div className="p-6 space-y-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Treasurer Report</h1>
-        <p className="text-gray-600">View and manage treasurer reports</p>
+    <>
+      <style dangerouslySetInnerHTML={{__html: `
+        @media print {
+          nav,
+          header,
+          .no-print,
+          button {
+            display: none !important;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+          }
+          main {
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .print-content {
+            padding: 10px !important;
+          }
+          .print-only {
+            display: block !important;
+            margin-bottom: 10px !important;
+          }
+          .space-y-8 > * + * {
+            margin-top: 0.5rem !important;
+          }
+          .space-y-6 > * + * {
+            margin-top: 0.5rem !important;
+          }
+          .mb-6 {
+            margin-bottom: 0.5rem !important;
+          }
+          .mb-4 {
+            margin-bottom: 0.5rem !important;
+          }
+          .p-4, .p-6 {
+            padding: 0.75rem !important;
+          }
+          .md\\:p-6 {
+            padding: 0.75rem !important;
+          }
+          table {
+            page-break-inside: avoid;
+          }
+          .bg-gray-50 {
+            background-color: #f9fafb !important;
+          }
+          .gap-6 {
+            gap: 0.5rem !important;
+          }
+          svg {
+            max-height: 300px !important;
+          }
+          .h-96 {
+            height: 300px !important;
+          }
+          .overflow-x-auto {
+            display: flex !important;
+            justify-content: center !important;
+          }
+          .overflow-x-auto > div {
+            margin: 0 auto !important;
+          }
+          .bg-gray-50 {
+            text-align: center !important;
+          }
+          .bg-gray-50 > div {
+            display: flex !important;
+            justify-content: center !important;
+          }
+          .grid {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+          }
+          .grid > div {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+        }
+      `}} />
+      <div className="p-6 space-y-8 print-content">
+        <div className="mb-6 no-print">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900 mb-2">Treasurer Report</h1>
+              <p className="text-gray-600">View and manage treasurer reports</p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handlePrint}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-blue-600 rounded-md hover:bg-blue-700"
+              >
+                <svg className="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                </svg>
+                Print
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="print-only" style={{ display: 'none' }}>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Treasurer Report</h1>
+          <p className="text-gray-600">
+            Year: <span className="font-semibold">{selectedYear}</span>
+            {!isAnnual && (
+              <> | Month: <span className="font-semibold">{selectedMonth}</span></>
+            )}
+          </p>
+        </div>
 
-        <div className="flex items-baseline space-x-4 mt-4">
+        <div className="no-print">
+          <div className="flex items-baseline space-x-4 mt-4">image.png
           <YearSelector
             selectedYear={selectedYear}
             onYearChange={handleYearChange}
@@ -372,7 +660,7 @@ export default function TreasurerReport() {
             />
           </div>
         </div>
-      </div>
+        </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         {isLoading ? (
@@ -404,11 +692,11 @@ export default function TreasurerReport() {
             {/* Charts */}
             {groupedTransactions.length > 0 && transactions.length > 0 && (() => {
               const chartData = prepareChartData();
-              const weeklyData = prepareWeeklyChartData();
+              const monthlyData = prepareMonthlyChartData();
               return (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 ">
                   {/* Bar Chart */}
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="bg-gray-50 rounded-lg p-4 md:p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-4">Transaction Summary by Head</h2>
                     <div className="overflow-x-auto">
                       <div >
@@ -460,50 +748,40 @@ export default function TreasurerReport() {
                     </div>
                   </div>
 
-                  {/* Line Chart - Weekly */}
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Weekly Transaction Trends</h2>
-                    {weeklyData.weeks.length === 0 ? (
+                  {/* Line Chart - Monthly */}
+                  <div className="bg-gray-50 rounded-lg p-4 ">
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Monthly Transaction Trends</h2>
+                    {monthlyData.months.length === 0 ? (
                       <div className="h-96 flex items-center justify-center text-gray-500">
-                        No weekly data available
+                        No monthly data available
                       </div>
                     ) : (
                       <>
                         <div className="overflow-x-auto">
-                          <div style={{ minWidth: `${Math.max(600, weeklyData.weeks.length * 80)}px` }}>
+                          <div style={{ minWidth: `${Math.max(600, monthlyData.months.length * 80)}px` }}>
                             <LineChart
-                              width={Math.max(600, weeklyData.weeks.length * 80)}
+                              width={Math.max(600, monthlyData.months.length * 80)}
                               height={400}
                               series={[
                                 {
-                                  data: weeklyData.income,
+                                  data: monthlyData.income,
                                   label: 'Income',
-                                  color: '#10b981',
+                                  color: '#10b981'
                                 },
                                 {
-                                  data: weeklyData.expense,
+                                  data: monthlyData.expense,
                                   label: 'Expense',
                                   color: '#ef4444',
                                 },
                               ]}
                               xAxis={[{ 
-                                data: weeklyData.weeks, 
+                                data: monthlyData.months, 
                                 scaleType: 'point',
-                                label: 'Week'
+                                label: 'Month'
                               }]}
-                              yAxis={[{ 
-                                label: 'Amount (₹)',
-                                valueFormatter: (value: number) => {
-                                  return new Intl.NumberFormat("en-IN", {
-                                    style: "currency",
-                                    currency: "INR",
-                                    minimumFractionDigits: 0,
-                                    maximumFractionDigits: 0,
-                                  }).format(value);
-                                }
-                              }]}
+                              yAxis={[{ width: 100 }]}
                               grid={{ vertical: true, horizontal: true }}
-                              margin={{ left: 80, right: 30, top: 30, bottom: 100 }}
+                              // margin={{ left: 100, right: 30, top: 30, bottom: 100 }}
                             />
                           </div>
                         </div>
@@ -531,6 +809,7 @@ export default function TreasurerReport() {
                     <TableHeadCell>Head</TableHeadCell>
                     <TableHeadCell>Particulars</TableHeadCell>
                     <TableHeadCell className="text-right">Total Amount</TableHeadCell>
+                    <TableHeadCell className="text-right">Cumulative</TableHeadCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -545,6 +824,9 @@ export default function TreasurerReport() {
                       <TableCell className={`text-right font-bold ${group.type === 'expense' ? 'text-red-600' : 'text-green-600'}`}>
                         {formatCurrency(group.total)}
                       </TableCell>
+                      <TableCell className={`text-right font-bold ${group.type === 'expense' ? 'text-red-600' : 'text-green-600'}`}>
+                        {formatCurrency(group.cumulative)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -553,20 +835,39 @@ export default function TreasurerReport() {
             <div className="bg-gray-50 px-6 py-4 border border-gray-200 rounded-lg">
               <div className="flex items-center justify-between">
                 <p className="text-lg font-semibold text-gray-900">Grand Total</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {formatCurrency(groupedTransactions.reduce((sum, group) => {
-                    if (group.type === 'income') {
-                      return sum + group.total;
-                    } else {
-                      return sum - group.total;
-                    }}, 0))}
-                </p>
+                <div className="flex items-center space-x-8">
+                  <div className="text-right">
+                    <p className="text-sm text-gray-600 mb-1">Total Amount</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {formatCurrency(groupedTransactions.reduce((sum, group) => {
+                        if (group.type === 'income') {
+                          return sum + group.total;
+                        } else {
+                          return sum - group.total;
+                        }
+                      }, 0))}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-600 mb-1">Cumulative</p>
+                    <p className="text-lg font-bold text-gray-900">
+                      {formatCurrency(groupedTransactions.reduce((sum, group) => {
+                        if (group.type === 'income') {
+                          return sum + group.cumulative;
+                        } else {
+                          return sum - group.cumulative;
+                        }
+                      }, 0))}
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
