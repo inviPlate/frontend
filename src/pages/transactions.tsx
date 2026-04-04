@@ -4,6 +4,7 @@ import { useOffertoryModal } from '../context/OffertoryModalContext';
 import YearSelector from '../components/YearSelector';
 import useAxios from '../context/useAxios';
 import { API_PATHS } from '../utils/apiPath';
+import { getCurrentFiscalYearLabel } from '../utils/fiscalYear';
 import { AddTransactionModal } from '../components/AddTransactionModal';
 import { OffertoryModal } from '../components/OffertoryModal';
 import { PastoralSupportModal } from '../components/PastoralSupportModal';
@@ -81,7 +82,7 @@ interface ExpenseData {
 }
 
 export default function Transactions() {
-  const [selectedYear, setSelectedYear] = useState('2025-2026');
+  const [selectedYear, setSelectedYear] = useState(getCurrentFiscalYearLabel());
   const [fiscalYears, setFiscalYears] = useState<Array<{ id: number; year: string; is_active: boolean; is_deleted: boolean }>>([]);
   const [offertoryData, setOffertoryData] = useState<OffertoryData[]>([]);
   const [isLoadingOffertory, setIsLoadingOffertory] = useState(false);
@@ -312,6 +313,7 @@ export default function Transactions() {
               setTransactionsPage(1); // Reset to first page for transactions
             }}
             onYearsLoaded={useCallback((years: Array<{ id: number; year: string; is_active: boolean; is_deleted: boolean }>) => {
+              
               setFiscalYears(years);
               console.log('Years loaded in transactions:', years);
             }, [])}
