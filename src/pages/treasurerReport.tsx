@@ -4,6 +4,7 @@ import { BarChart, LineChart } from '@mui/x-charts';
 import YearSelector from '../components/YearSelector';
 import useAxios from '../context/useAxios';
 import { API_PATHS } from '../utils/apiPath';
+import { getCurrentFiscalYearLabel } from '../utils/fiscalYear';
 
 const MONTHS = [
   'January',
@@ -75,7 +76,7 @@ export default function TreasurerReport() {
     return MONTHS[currentMonthIndex];
   };
 
-  const [selectedYear, setSelectedYear] = useState<string>('2025-2026');
+  const [selectedYear, setSelectedYear] = useState<string>(getCurrentFiscalYearLabel());
   const [selectedMonth, setSelectedMonth] = useState<string>(getCurrentMonth());
   const [isAnnual, setIsAnnual] = useState<boolean>(false);
   const [fiscalYears, setFiscalYears] = useState<Array<{ id: number; year: string; is_active: boolean; is_deleted: boolean }>>([]);

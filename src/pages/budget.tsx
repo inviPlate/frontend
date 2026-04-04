@@ -7,6 +7,7 @@ import { AddYearModal } from "../components/AddYearModal";
 import YearSelector from "../components/YearSelector";
 import useAxios from "../context/useAxios";
 import { API_PATHS } from "../utils/apiPath";
+import { getCurrentFiscalYearLabel } from "../utils/fiscalYear";
 
 // Custom hook for debouncing values
 function useDebounce<T>(value: T, delay: number): T {
@@ -51,7 +52,7 @@ export default function Budget() {
   const [isAddYearModalOpen, setIsAddYearModalOpen] = useState(false);
   const [editingIncomeItem, setEditingIncomeItem] = useState<BudgetData | null>(null);
   const [editingExpenseItem, setEditingExpenseItem] = useState<BudgetData | null>(null);
-  const [selectedYear, setSelectedYear] = useState<string>('2025-2026');
+  const [selectedYear, setSelectedYear] = useState<string>(getCurrentFiscalYearLabel());
   const [fiscalYears, setFiscalYears] = useState<Array<{ id: number; year: string; is_active: boolean; is_deleted: boolean }>>([]);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
