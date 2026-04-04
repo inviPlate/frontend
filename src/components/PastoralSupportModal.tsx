@@ -67,6 +67,8 @@ export function PastoralSupportModal({ isOpen, onClose, onSubmitted, yearId }: P
     { key: 'rent', label: 'Rent', headId: PASTORAL_HEAD_IDS.RENT, desc: 'Rent' },
     { key: 'telephoneInternet', label: 'Telephone / internet', headId: PASTORAL_HEAD_IDS.TELEPHONE_INTERNET, desc: 'Telephone / Internet' },
     { key: 'medicalAllowance', label: 'Medical Allowance', headId: PASTORAL_HEAD_IDS.MEDICAL_ALLOWANCE, desc: 'Medical Allowance' },
+    { key: 'uniformAllowance', label: 'Uniform Allowance', headId: PASTORAL_HEAD_IDS.UNIFORM_ALLOWANCE, desc: 'Uniform Allowance' },
+    { key: 'wifeAllowance', label: 'Wife Allowance', headId: PASTORAL_HEAD_IDS.WIFE_ALLOWANCE, desc: 'Wife Allowance' },
   ].sort((a, b) => a.key.localeCompare(b.key));
 
   const toNumber = (v: string | number) => {

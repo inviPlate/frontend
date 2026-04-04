@@ -12,6 +12,8 @@ export const PASTORAL_HEAD_IDS = {
   RENT: 215,
   SPECIAL_ALLOWANCE: 206,
   TELEPHONE_INTERNET: 219,
+  UNIFORM_ALLOWANCE: 371,
+  WIFE_ALLOWANCE: 204,
 } as const;
 
 export type PastoralHeadKey = keyof typeof PASTORAL_HEAD_IDS;
